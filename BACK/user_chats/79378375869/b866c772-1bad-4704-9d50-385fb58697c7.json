@@ -1,0 +1,22 @@
+{
+  "chat_id": "b866c772-1bad-4704-9d50-385fb58697c7",
+  "messages": [
+    {
+      "role": "user",
+      "content": "да ",
+      "timestamp": "2025-11-16T20:45:17.390020"
+    },
+    {
+      "role": "assistant",
+      "content": "The user has just said \"да\" (yes) in response to my greeting. However, I haven't received any dream description yet. According to the STANDARD_USER_FLOW, I need to receive the dream description first before proceeding with any analysis. The user hasn't provided a dream yet, so I should ask them to describe their dream.\n\nI need to follow the flow:\n1. Greet - Done\n2. Receive Dream - Not done yet, user just said \"да\"\n3. Clarify - Can't do this without a dream description\n4. TRIGGER EXECUTION - Can't do this without a dream\n5. Analyze - Can't do this without a dream\n6. Deep Analysis Offer - Can't do this without a dream\n\nSince the user hasn't provided a dream description, I should ask them to describe their dream. I should use Russian as per the Language Lockdown rule.Здравствуйте, Вадим. Давайте проанализируем ваш сон. Пожалуйста, опишите ваш сон подробно, включая все ключевые события, символы и персонажей, которые вам запомнились.",
+      "timestamp": "2025-11-16T20:45:25.045442"
+    }
+  ],
+  "account": {
+    "email": "ebifqgop@guerrillamailblock.com",
+    "password": "d48304d7c4956e54024b23066e2b8a045ea12458fdfbef0761680d257c170a64",
+    "auth_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImQ5NjM2ZGU0LTg1OTktNDkxZS1hYzEzLTdhNWZiOGJmNGU1MCIsImxhc3RfcGFzc3dvcmRfY2hhbmdlIjoxNzU0OTc1NDY1LCJleHAiOjE3NjM5MzA2NzJ9.wAoJlzMKnqG9iUXvm8OdXdlrDmpHKRn8V9PAcQhndaU",
+    "session_valid": true
+  },
+  "last_response_id": "aa166041-3a21-4828-a97a-f510376f3a0c"
+}

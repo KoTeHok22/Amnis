@@ -1,0 +1,172 @@
+import React, { useState } from 'react';
+import { motion } from 'motion/react';
+import { PrimaryCTA } from './PrimaryCTA';
+import { Sparkles, Check } from 'lucide-react';
+
+interface UpsellCardProps {
+  price: string;
+  onPurchase: () => void;
+}
+
+interface PricingPlan {
+  id: string;
+  name: string;
+  analyses: number;
+  price: number;
+  pricePerAnalysis: number;
+  popular?: boolean;
+}
+
+const pricingPlans: PricingPlan[] = [
+  {
+    id: 'single',
+    name: 'Пробный',
+    analyses: 1,
+    price: 199,
+    pricePerAnalysis: 199,
+  },
+  {
+    id: 'starter',
+    name: 'Начальный',
+    analyses: 5,
+    price: 799,
+    pricePerAnalysis: 160,
+    popular: true,
+  },
+  {
+    id: 'standard',
+    name: 'Стандартный',
+    analyses: 10,
+    price: 1399,
+    pricePerAnalysis: 140,
+  },
+  {
+    id: 'premium',
+    name: 'Премиум',
+    analyses: 15,
+    price: 1899,
+    pricePerAnalysis: 127,
+  },
+];
+
+export function UpsellCard({ price, onPurchase }: UpsellCardProps) {
+  const [selectedPlan, setSelectedPlan] = useState<string>('starter');
+  
+  const benefits = [
+    'Детальный разбор всех символов',
+    'Психологический анализ',
+    'Персональные рекомендации',
+  ];
+
+  const currentPlan = pricingPlans.find(plan => plan.id === selectedPlan) || pricingPlans[1];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.4 }}
+      className="my-8 rounded-[28px] p-6 sm:p-8 relative overflow-hidden"
+      style={{
+        background: 'linear-gradient(135deg, rgba(244, 224, 167, 0.12), rgba(169, 152, 255, 0.08))',
+        border: '2px solid rgba(244, 224, 167, 0.4)',
+        backdropFilter: 'blur(20px)',
+        boxShadow: '0 8px 32px rgba(244, 224, 167, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+      }}
+    >
+      {/* Glow effect */}
+      <div className="absolute inset-0 opacity-40 pointer-events-none">
+        <div className="absolute top-0 right-0 w-48 h-48 bg-[#F4E0A7] rounded-full filter blur-[80px]" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-[#A998FF] rounded-full filter blur-[80px]" />
+      </div>
+
+      <div className="relative">
+        <div className="flex items-start gap-3 sm:gap-4 mb-6">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-[rgba(244,224,167,0.3)] to-[rgba(169,152,255,0.2)] shadow-[0_0_24px_rgba(244,224,167,0.4)]">
+            <Sparkles className="w-6 h-6 text-[#F4E0A7]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-[#F4E0A7] mb-2">
+              Полный Подсознательный Анализ
+            </h3>
+            <p className="text-[#E8E6F5] leading-relaxed opacity-90 text-sm sm:text-base">
+              Углубленное толкование вашего сна с раскрытием символов 
+              и личных смыслов. Amnis проведет детальный анализ всех элементов.
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-2.5 mb-6">
+          {benefits.map((benefit, index) => (
+            <div key={index} className="flex items-center gap-2.5">
+              <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 bg-[rgba(244,224,167,0.2)] border border-[rgba(244,224,167,0.4)]">
+                <Check className="w-3 h-3 text-[#F4E0A7]" />
+              </div>
+              <span className="text-[#E8E6F5] text-sm">{benefit}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Pricing Plans */}
+        <div className="mb-6">
+          <div className="text-[#B8B5D1] text-sm mb-3">Выберите тариф:</div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+            {pricingPlans.map((plan) => (
+              <motion.button
+                key={plan.id}
+                onClick={() => setSelectedPlan(plan.id)}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className={`relative p-3 sm:p-4 rounded-2xl transition-all ${
+                  selectedPlan === plan.id
+                    ? 'bg-gradient-to-br from-[rgba(244,224,167,0.25)] to-[rgba(169,152,255,0.15)] border-2 border-[rgba(244,224,167,0.6)] shadow-[0_0_20px_rgba(244,224,167,0.3)]'
+                    : 'bg-[rgba(13,11,36,0.4)] border-2 border-[rgba(169,152,255,0.2)] hover:border-[rgba(169,152,255,0.4)]'
+                }`}
+              >
+                {plan.popular && (
+                  <div className="absolute -top-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-[10px] bg-gradient-to-r from-[#F4E0A7] to-[#A998FF] text-[#12103A]">
+                    Популярно
+                  </div>
+                )}
+                <div className="text-center">
+                  <div className={`text-xs mb-1 ${selectedPlan === plan.id ? 'text-[#F4E0A7]' : 'text-[#B8B5D1]'}`}>
+                    {plan.name}
+                  </div>
+                  <div className={`mb-1 ${selectedPlan === plan.id ? 'text-[#F4E0A7]' : 'text-[#E8E6F5]'}`}>
+                    {plan.analyses} {plan.analyses === 1 ? 'анализ' : 'анализов'}
+                  </div>
+                  <div className={`text-sm sm:text-base ${selectedPlan === plan.id ? 'text-[#F4E0A7]' : 'text-[#E8E6F5]'}`}>
+                    {plan.price}₽
+                  </div>
+                  {plan.analyses > 1 && (
+                    <div className="text-[10px] text-[#B8B5D1] mt-1">
+                      {plan.pricePerAnalysis}₽/анализ
+                    </div>
+                  )}
+                </div>
+              </motion.button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+          <div className="min-h-[72px] flex flex-col justify-center">
+            <div className="text-[#B8B5D1] text-sm mb-1">К оплате</div>
+            <div className="text-[#F4E0A7] text-2xl sm:text-3xl">{currentPlan.price}₽</div>
+            <div className="min-h-[20px]">
+              {currentPlan.analyses > 1 && (
+                <div className="text-[#A998FF] text-xs sm:text-sm mt-1">
+                  Экономия {((currentPlan.analyses * 199) - currentPlan.price)}₽
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="flex-shrink-0">
+            <PrimaryCTA onClick={onPurchase} icon={<Sparkles className="w-4 h-4" />}>
+              Заказать анализ
+            </PrimaryCTA>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}

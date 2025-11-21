@@ -1,0 +1,22 @@
+{
+  "chat_id": "cb4bb7cc-35ca-4afb-8052-901d1bccf241",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Привет",
+      "timestamp": "2025-11-16T21:46:44.340125"
+    },
+    {
+      "role": "assistant",
+      "content": "The user is greeting me with \"Привет\" (Hello). According to the SYSTEM_CONSTITUTION, I need to follow the STANDARD_USER_FLOW. The first step is to greet the user with \"Здравствуйте, [UserName]. Давайте проанализируем ваш сон.\" \n\nThe UserName from the context block is \"Вадим\", so I should greet him properly and then ask for his dream description. I need to maintain the professional tone and follow the exact flow.\n\nI should not proceed to analysis yet since I haven't received the dream description. I need to wait for him to provide the dream detailsЗдравствуйте, Вадим. Давайте проанализируем ваш сон. Пожалуйста, опишите ваше сновидение подробно, включая все ключевые символы, события и, что особенно важно, какие эмоции вы испытывали во время сна.",
+      "timestamp": "2025-11-16T21:46:50.157208"
+    }
+  ],
+  "account": {
+    "email": "wmdkxgix@guerrillamailblock.com",
+    "password": "d48304d7c4956e54024b23066e2b8a045ea12458fdfbef0761680d257c170a64",
+    "auth_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjIwN2VlMDBjLTNkZDEtNDA1Zi04OWEzLTZjMDMxNjUyNDc4OSIsImxhc3RfcGFzc3dvcmRfY2hhbmdlIjoxNzU0OTc2NDcxLCJleHAiOjE3NjM5MzQzNzl9.savp6REJJZd4ZpQanQ80l3wc8zl9OaR1a-ChDD4Eit0",
+    "session_valid": true
+  },
+  "last_response_id": "365c0188-0f32-4add-a04d-5c9f670e7212"
+}

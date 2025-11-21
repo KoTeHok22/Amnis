@@ -1,0 +1,22 @@
+{
+  "chat_id": "c183fc4a-ee60-40e9-9f95-880aa4003436",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Мне приснилась хрень",
+      "timestamp": "2025-11-19T10:11:23.946833"
+    },
+    {
+      "role": "assistant",
+      "content": "Понимаю, что иногда сны могут казаться бессмысленными или неприятными. Чтобы я мог помочь вам разобраться в их психологическом значении, расскажите, пожалуйста, хотя бы в общих чертах - что именно происходило в этом сновидении? Даже самые странные или \"мусорные\" сны содержат важные символы, которые отражают ваши внутренние переживания.",
+      "timestamp": "2025-11-19T10:11:43.024462"
+    }
+  ],
+  "account": {
+    "email": "vmsnjrdf@guerrillamailblock.com",
+    "password": "d48304d7c4956e54024b23066e2b8a045ea12458fdfbef0761680d257c170a64",
+    "auth_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjZiNDJjOTQ1LThmNzUtNDcxMy1hZWFmLTQ2MzA1M2RiMGQwNiIsImxhc3RfcGFzc3dvcmRfY2hhbmdlIjoxNzU0OTc2NTM4LCJleHAiOjE3NjQxNTE4Mzl9.LaLmcpUeBV5KUmy_gtlEt04d7ZMEDEAEWuTnkV05UYg",
+    "session_valid": true
+  },
+  "last_response_id": "41c898bb-34eb-4ab1-859c-ab8b3e876d03"
+}

@@ -1,0 +1,11 @@
+{
+  "chat_id": "29999d5b-6422-4a9b-90c7-20161a5f5ea0",
+  "messages": [],
+  "account": {
+    "email": "dzyadzwo@guerrillamailblock.com",
+    "password": "d48304d7c4956e54024b23066e2b8a045ea12458fdfbef0761680d257c170a64",
+    "auth_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjU3N2YyYTU0LWUyNjAtNGFhMy1hNDg3LWQ1YjlhNmQxNmYwZiIsImxhc3RfcGFzc3dvcmRfY2hhbmdlIjoxNzU0OTU0MzY5LCJleHAiOjE3NjM5MzQzNzZ9.cO006ZUYhc3oU7Y3lRHfkDlinf5SHiKZ7zSYfXmot4c",
+    "session_valid": true
+  },
+  "last_response_id": "bd6d5963-c8af-4c5f-9427-6d9a239680ff"
+}

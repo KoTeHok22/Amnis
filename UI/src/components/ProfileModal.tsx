@@ -1,0 +1,644 @@
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'motion/react';
+import { useAuth } from '../context/AuthContext';
+import { PrimaryCTA } from './PrimaryCTA';
+import { SparkleIcon } from './SparkleIcon';
+import { X, User, Phone, Calendar, Sparkles, Lock, Edit2, Check } from 'lucide-react';
+import { updateUserProfile as updateProfileAPI, getUserSubscription, changePassword, fetchUserProfileData, purchasePlan } from '../services/api';
+
+interface ProfileModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onPurchase: (planId: string) => void;
+}
+
+interface UserProfile {
+  name: string;
+  phone: string;
+  birthDate: string;
+  availableAnalyses: number;
+}
+
+const pricingPlans = [
+  { id: 'plan-1', name: 'Одиночный', analyses: 1, price: 199, pricePerAnalysis: 199, popular: false },
+  { id: 'plan-5', name: 'Начальный', analyses: 5, price: 799, pricePerAnalysis: 160, popular: true },
+  { id: 'plan-10', name: 'Глубокий', analyses: 10, price: 1399, pricePerAnalysis: 140, popular: false },
+  { id: 'plan-15', name: 'Мастер', analyses: 15, price: 1899, pricePerAnalysis: 127, popular: false },
+];
+
+export function ProfileModal({ isOpen, onClose, onPurchase }: ProfileModalProps) {
+  const { user, updateUserProfile, fetchUserProfile } = useAuth();
+  const [isEditing, setIsEditing] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState('plan-5');
+  const [loading, setLoading] = useState(false);
+  const [showPasswordChangeModal, setShowPasswordChangeModal] = useState(false);
+  const [passwordChangeData, setPasswordChangeData] = useState({
+    oldPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [passwordChangeError, setPasswordChangeError] = useState('');
+  const [showPaymentConfirmation, setShowPaymentConfirmation] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'auto';
+    }
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
+  }, [isOpen]);
+
+  const [profile, setProfile] = useState<UserProfile>({
+    name: '',
+    phone: '',
+    birthDate: '',
+    availableAnalyses: 0,
+  });
+
+  useEffect(() => {
+    if (isOpen) {
+      // Fetch updated profile when modal opens (only once per open)
+      fetchUserProfile();
+    }
+    if (isOpen && user) {
+      setProfile({
+        name: user.name || '',
+        phone: user.phone_number || '',
+        birthDate: user.birth_date || '',
+        availableAnalyses: user.available_analyses || 0,
+      });
+    } else if (!isOpen) {
+      // Reset profile when modal closes
+      setProfile({
+        name: '',
+        phone: '',
+        birthDate: '',
+        availableAnalyses: 0,
+      });
+    }
+  }, [isOpen]); // Only re-run when isOpen changes to prevent multiple fetches
+
+  // Update profile state when user data changes
+  useEffect(() => {
+    if (isOpen && user) {
+      setProfile({
+        name: user.name || '',
+        phone: user.phone_number || '',
+        birthDate: user.birth_date || '',
+        availableAnalyses: user.available_analyses || 0,
+      });
+    }
+  }, [user, isOpen]);
+
+  useEffect(() => {
+    if (user && user.available_analyses !== undefined) {
+      setProfile(prev => ({
+        ...prev,
+        availableAnalyses: user.available_analyses || 0
+      }));
+    }
+  }, [user?.available_analyses]);
+
+  const [editedProfile, setEditedProfile] = useState<UserProfile>(profile);
+
+  useEffect(() => {
+    setEditedProfile(profile);
+  }, [profile]);
+
+  const handleSaveEdit = async () => {
+    setLoading(true);
+    try {
+      await updateProfileAPI(editedProfile.name, editedProfile.birthDate);
+
+      setProfile(editedProfile);
+      updateUserProfile({
+        name: editedProfile.name,
+        birth_date: editedProfile.birthDate
+      });
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditedProfile(profile);
+    setIsEditing(false);
+  };
+
+  const handlePasswordChange = async () => {
+    // Validate passwords
+    if (passwordChangeData.newPassword !== passwordChangeData.confirmPassword) {
+      setPasswordChangeError('Новые пароли не совпадают');
+      return;
+    }
+
+    if (passwordChangeData.newPassword.length < 6) {
+      setPasswordChangeError('Пароль должен содержать не менее 6 символов');
+      return;
+    }
+
+    setLoading(true);
+    setPasswordChangeError('');
+
+    try {
+      // Call API to change password
+      await changePassword(passwordChangeData.oldPassword, passwordChangeData.newPassword);
+      // If successful, reset form and close password change view
+      setPasswordChangeData({
+        oldPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+      setShowPasswordChange(false);
+    } catch (error) {
+      console.error('Error changing password:', error);
+      setPasswordChangeError('Ошибка при смене пароля. Проверьте старый пароль и попробуйте снова.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordChangeCancel = () => {
+    setPasswordChangeData({
+      oldPassword: '',
+      newPassword: '',
+      confirmPassword: ''
+    });
+    setPasswordChangeError('');
+    setShowPasswordChangeModal(false);
+  };
+
+  const handlePurchase = () => {
+    // Show payment confirmation modal
+    setShowPaymentConfirmation(true);
+  };
+
+  const handleConfirmPayment = async () => {
+    setLoading(true);
+    try {
+      // Call the backend to process the payment and update user's analyses count
+      const result = await purchasePlan(selectedPlan);
+
+      // Fetch updated user profile to get the new analyses count
+      const updatedProfileData = await fetchUserProfileData();
+
+      // Update the local profile state with the new data
+      setProfile({
+        name: updatedProfileData.name || '',
+        phone: updatedProfileData.phone_number || '',
+        birthDate: updatedProfileData.birth_date || '',
+        availableAnalyses: updatedProfileData.available_analyses || 0,
+      });
+
+      // Update the auth context with new data
+      if (user) {
+        updateUserProfile({
+          ...user,
+          available_analyses: updatedProfileData.available_analyses,
+          name: updatedProfileData.name,
+          phone_number: updatedProfileData.phone_number,
+          birth_date: updatedProfileData.birth_date,
+        });
+      }
+
+      // Notify parent component of successful purchase
+      onPurchase(selectedPlan);
+
+      // Close the payment confirmation modal
+      setShowPaymentConfirmation(false);
+    } catch (error) {
+      console.error('Payment error:', error);
+      // Optionally show an error message to the user
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelPayment = () => {
+    // Just close the payment confirmation modal
+    setShowPaymentConfirmation(false);
+  };
+
+  const currentPlan = pricingPlans.find(p => p.id === selectedPlan) || pricingPlans[1];
+
+  return (
+    <>
+      {createPortal(
+        <>
+          {isOpen && (
+            <AnimatePresence>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-[999999] flex items-center justify-center px-4 bg-[rgba(13,11,36,0.85)] backdrop-blur-xl"
+              onClick={onClose}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                className="relative w-full max-w-[calc(100%-2rem)] md:max-w-3xl max-h-[85vh] rounded-3xl bg-gradient-to-br from-[rgba(26,22,64,0.95)] to-[rgba(37,31,92,0.95)] backdrop-blur-2xl border border-[rgba(169,152,255,0.3)] shadow-[0_0_80px_rgba(169,152,255,0.2)] overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Close Button */}
+                <button
+                  onClick={onClose}
+                  className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center bg-[rgba(13,11,36,0.6)] hover:bg-[rgba(13,11,36,0.8)] border border-[rgba(169,152,255,0.2)] hover:border-[rgba(169,152,255,0.4)] transition-all z-10"
+                  disabled={loading}
+                >
+                  <X className="w-5 h-5 text-[#E8E6F5]" />
+                </button>
+
+                {/* Decorative Sparkles */}
+                <SparkleIcon className="absolute top-6 left-6 text-[#F4E0A7]" size={16} delay={0} />
+                <SparkleIcon className="absolute bottom-6 right-6 text-[#A998FF]" size={14} delay={0.3} />
+
+                <div className="p-6 sm:p-8 overflow-y-auto max-h-[calc(85vh-4rem)] flex flex-col flex-1">
+                {/* Header */}
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="w-16 h-16 rounded-2xl flex items-center justify-center bg-gradient-to-br from-[rgba(244,224,167,0.3)] to-[rgba(169,152,255,0.2)] shadow-[0_0_24px_rgba(244,224,167,0.4)]">
+                    <User className="w-8 h-8 text-[#F4E0A7]" />
+                  </div>
+                  <div className="flex-1">
+                    <h2 className="text-[#F4E0A7]">Профиль</h2>
+                    <p className="text-[#B8B5D1] text-sm mt-1">Управление личными данными и тарифами</p>
+                  </div>
+                </div>
+
+                {/* Profile Info */}
+                <div className="mb-8">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-[#E8E6F5]">Личная информация</h3>
+                    {!isEditing ? (
+                      <button
+                        onClick={() => setIsEditing(true)}
+                        className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-[rgba(169,152,255,0.2)] to-[rgba(169,152,255,0.1)] border border-[rgba(169,152,255,0.3)] hover:border-[rgba(169,152,255,0.5)] text-[#A998FF] text-sm transition-all"
+                        disabled={loading}
+                      >
+                        <Edit2 className="w-4 h-4" />
+                        <span>Редактировать</span>
+                      </button>
+                    ) : (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleCancelEdit}
+                          className="px-4 py-2 rounded-full bg-[rgba(13,11,36,0.6)] border border-[rgba(169,152,255,0.2)] hover:border-[rgba(169,152,255,0.4)] text-[#B8B5D1] text-sm transition-all"
+                          disabled={loading}
+                        >
+                          Отмена
+                        </button>
+                        <button
+                          onClick={handleSaveEdit}
+                          className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-[#A998FF] to-[#7C6FDB] text-white text-sm transition-all hover:shadow-[0_8px_24px_rgba(169,152,255,0.4)]"
+                          disabled={loading}
+                        >
+                          {loading ? (
+                            <div className="animate-spin h-4 w-4 mr-2 border-t-2 border-r-2 border-white rounded-full"></div>
+                          ) : (
+                            <Check className="w-4 h-4" />
+                          )}
+                          <span>{loading ? 'Сохранение...' : 'Сохранить'}</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-4">
+                    {/* Name */}
+                    <div className="flex items-center gap-3 p-4 rounded-2xl bg-[rgba(13,11,36,0.4)] border border-[rgba(169,152,255,0.15)]">
+                      <User className="w-5 h-5 text-[#A998FF] flex-shrink-0" />
+                      <div className="flex-1">
+                        <div className="text-[#B8B5D1] text-xs mb-1">Имя</div>
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editedProfile.name}
+                            onChange={(e) => setEditedProfile({ ...editedProfile, name: e.target.value })}
+                            className="w-full bg-transparent text-[#E8E6F5] outline-none border-b border-[rgba(169,152,255,0.3)] focus:border-[#A998FF] transition-colors"
+                            disabled={loading}
+                          />
+                        ) : (
+                          <div className="text-[#E8E6F5]">{profile.name}</div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Phone */}
+                    <div className="flex items-center gap-3 p-4 rounded-2xl bg-[rgba(13,11,36,0.4)] border border-[rgba(169,152,255,0.15)]">
+                      <Phone className="w-5 h-5 text-[#A998FF] flex-shrink-0" />
+                      <div className="flex-1">
+                        <div className="text-[#B8B5D1] text-xs mb-1">Номер телефона</div>
+                        {isEditing ? (
+                          <input
+                            type="tel"
+                            value={editedProfile.phone}
+                            onChange={(e) => setEditedProfile({ ...editedProfile, phone: e.target.value })}
+                            className="w-full bg-transparent text-[#E8E6F5] outline-none border-b border-[rgba(169,152,255,0.3)] focus:border-[#A998FF] transition-colors"
+                            disabled={loading}
+                          />
+                        ) : (
+                          <div className="text-[#E8E6F5]">{profile.phone}</div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Birth Date */}
+                    <div className="flex items-center gap-3 p-4 rounded-2xl bg-[rgba(13,11,36,0.4)] border border-[rgba(169,152,255,0.15)]">
+                      <Calendar className="w-5 h-5 text-[#A998FF] flex-shrink-0" />
+                      <div className="flex-1">
+                        <div className="text-[#B8B5D1] text-xs mb-1">Дата рождения</div>
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editedProfile.birthDate}
+                            onChange={(e) => setEditedProfile({ ...editedProfile, birthDate: e.target.value })}
+                            placeholder="ДД.ММ.ГГГГ"
+                            className="w-full bg-transparent text-[#E8E6F5] outline-none border-b border-[rgba(169,152,255,0.3)] focus:border-[#A998FF] transition-colors"
+                            disabled={loading}
+                          />
+                        ) : (
+                          <div className="text-[#E8E6F5]">{profile.birthDate}</div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Available Analyses */}
+                    <div className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-gradient-to-br from-[rgba(244,224,167,0.15)] to-[rgba(169,152,255,0.12)] border-2 border-[rgba(244,224,167,0.4)] shadow-[0_0_24px_rgba(244,224,167,0.2)]">
+                      <Sparkles className="w-5 h-5 text-[#F4E0A7] flex-shrink-0" />
+                      <div className="flex-1 text-center">
+                        <div className="text-[#F4E0A7] text-xs mb-1">Доступно глубоких анализов</div>
+                        <div className="text-[#F4E0A7] text-2xl">{profile.availableAnalyses}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Change Password Section */}
+                  <button
+                    onClick={() => setShowPasswordChangeModal(true)}
+                    className="w-full mt-8 flex items-center justify-center gap-2 px-4 py-3 rounded-full bg-gradient-to-r from-[rgba(169,152,255,0.15)] to-[rgba(169,152,255,0.08)] border border-[rgba(169,152,255,0.3)] hover:border-[rgba(169,152,255,0.5)] text-[#A998FF] transition-all hover:shadow-[0_8px_24px_rgba(169,152,255,0.2)]"
+                    disabled={loading}
+                  >
+                    <Lock className="w-4 h-4" />
+                    <span>Сменить пароль</span>
+                  </button>
+                </div>
+
+                {/* Pricing Plans */}
+                <div>
+                  <h3 className="text-[#E8E6F5] mb-4">Пополнить баланс анализов</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                    {pricingPlans.map((plan) => (
+                      <motion.button
+                        key={plan.id}
+                        onClick={() => setSelectedPlan(plan.id)}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        className={`relative p-4 rounded-2xl transition-all ${
+                          selectedPlan === plan.id
+                            ? 'bg-gradient-to-br from-[rgba(244,224,167,0.25)] to-[rgba(169,152,255,0.15)] border-2 border-[rgba(244,224,167,0.6)] shadow-[0_0_20px_rgba(244,224,167,0.3)]'
+                            : 'bg-[rgba(13,11,36,0.4)] border-2 border-[rgba(169,152,255,0.2)] hover:border-[rgba(169,152,255,0.4)]'
+                        }`}
+                        disabled={loading}
+                      >
+                        {plan.popular && (
+                          <div className="absolute -top-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-[10px] bg-gradient-to-r from-[#F4E0A7] to-[#A998FF] text-[#12103A] whitespace-nowrap">
+                            Популярно
+                          </div>
+                        )}
+                        <div className="text-center">
+                          <div className={`text-xs mb-2 ${selectedPlan === plan.id ? 'text-[#F4E0A7]' : 'text-[#B8B5D1]'}`}>
+                            {plan.name}
+                          </div>
+                          <div className={`mb-1 ${selectedPlan === plan.id ? 'text-[#F4E0A7]' : 'text-[#E8E6F5]'}`}>
+                            {plan.analyses} {plan.analyses === 1 ? 'анализ' : 'анализов'}
+                          </div>
+                          <div className={`text-base sm:text-lg ${selectedPlan === plan.id ? 'text-[#F4E0A7]' : 'text-[#E8E6F5]'}`}>
+                            {plan.price}₽
+                          </div>
+                          {plan.analyses > 1 && (
+                            <div className="text-[10px] text-[#B8B5D1] mt-1">
+                              {plan.pricePerAnalysis}₽/анализ
+                            </div>
+                          )}
+                        </div>
+                      </motion.button>
+                    ))}
+                  </div>
+
+                  {/* Purchase Summary */}
+                  <div className="flex items-center justify-between gap-4 px-6 py-4 rounded-2xl bg-[rgba(13,11,36,0.4)] border border-[rgba(169,152,255,0.2)] mb-4">
+                    <div>
+                      <div className="text-[#B8B5D1] text-sm mb-1">К оплате</div>
+                      <div className="text-[#F4E0A7] text-2xl">{currentPlan.price}₽</div>
+                      {currentPlan.analyses > 1 && (
+                        <div className="text-[#A998FF] text-xs mt-1">
+                          Экономия {((currentPlan.analyses * 199) - currentPlan.price)}₽
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[#B8B5D1] text-sm mb-1">Получите</div>
+                      <div className="text-[#F4E0A7] text-xl">+{currentPlan.analyses} {currentPlan.analyses === 1 ? 'анализ' : 'анализов'}</div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-center w-full">
+                    <PrimaryCTA onClick={handlePurchase} icon={<Sparkles className="w-4 h-4" />} disabled={loading}>
+                      Оплатить
+                    </PrimaryCTA>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        </AnimatePresence>
+      )}
+      </>,
+      document.body
+    )}
+
+      {/* Password Change Modal */}
+      {createPortal(
+        <AnimatePresence>
+          {showPasswordChangeModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-[999998] flex items-center justify-center px-4 bg-[rgba(13,11,36,0.85)] backdrop-blur-xl"
+              onClick={() => !loading && setShowPasswordChangeModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                className="relative w-full max-w-[calc(100%-2rem)] md:max-w-md rounded-3xl bg-gradient-to-br from-[rgba(26,22,64,0.95)] to-[rgba(37,31,92,0.95)] backdrop-blur-2xl border border-[rgba(169,152,255,0.3)] shadow-[0_0_80px_rgba(169,152,255,0.2)] max-h-[85vh] overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="p-8 max-h-[calc(85vh-2rem)] overflow-y-auto">
+                  <div className="text-center mb-6">
+                    <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 bg-gradient-to-br from-[rgba(169,152,255,0.3)] to-[rgba(244,224,167,0.25)] shadow-[0_0_24px_rgba(169,152,255,0.4)]">
+                      <Lock className="w-8 h-8 text-[#A998FF]" />
+                    </div>
+                    <h3 className="text-xl font-tech text-[#F4E0A7]">Смена пароля</h3>
+                    <p className="text-[#B8B5D1] text-sm mt-2">Введите текущий и новый пароли</p>
+                  </div>
+
+                  {passwordChangeError && (
+                    <div className="mb-4 p-3 rounded-xl bg-[rgba(255,107,107,0.15)] border border-[rgba(255,107,107,0.3)] text-[#FF6B6B] text-sm">
+                      {passwordChangeError}
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-[#B8B5D1] text-xs mb-1 block">Текущий пароль</label>
+                      <input
+                        type="password"
+                        value={passwordChangeData.oldPassword}
+                        onChange={(e) => setPasswordChangeData({...passwordChangeData, oldPassword: e.target.value})}
+                        className="w-full p-3 rounded-xl bg-[rgba(13,11,36,0.6)] border border-[rgba(169,152,255,0.2)] text-[#E8E6F5] outline-none focus:border-[#A998FF] transition-colors"
+                        placeholder="Введите текущий пароль"
+                        disabled={loading}
+                        autoFocus
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[#B8B5D1] text-xs mb-1 block">Новый пароль</label>
+                      <input
+                        type="password"
+                        value={passwordChangeData.newPassword}
+                        onChange={(e) => setPasswordChangeData({...passwordChangeData, newPassword: e.target.value})}
+                        className="w-full p-3 rounded-xl bg-[rgba(13,11,36,0.6)] border border-[rgba(169,152,255,0.2)] text-[#E8E6F5] outline-none focus:border-[#A998FF] transition-colors"
+                        placeholder="Введите новый пароль"
+                        disabled={loading}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[#B8B5D1] text-xs mb-1 block">Подтверждение пароля</label>
+                      <input
+                        type="password"
+                        value={passwordChangeData.confirmPassword}
+                        onChange={(e) => setPasswordChangeData({...passwordChangeData, confirmPassword: e.target.value})}
+                        className="w-full p-3 rounded-xl bg-[rgba(13,11,36,0.6)] border border-[rgba(169,152,255,0.2)] text-[#E8E6F5] outline-none focus:border-[#A998FF] transition-colors"
+                        placeholder="Повторите новый пароль"
+                        disabled={loading}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 mt-8">
+                    <button
+                      onClick={handlePasswordChangeCancel}
+                      disabled={loading}
+                      className="flex-1 py-3 px-4 rounded-xl bg-[rgba(13,11,36,0.6)] border border-[rgba(169,152,255,0.2)] hover:border-[rgba(169,152,255,0.4)] text-[#B8B5D1] transition-colors"
+                    >
+                      Отмена
+                    </button>
+                    <button
+                      onClick={handlePasswordChange}
+                      disabled={loading}
+                      className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-[#A998FF] to-[#7C6FDB] text-white transition-all hover:shadow-[0_8px_24px_rgba(169,152,255,0.4)]"
+                    >
+                      {loading ? (
+                        <div className="animate-spin h-4 w-4 mr-2 border-t-2 border-r-2 border-white rounded-full mx-auto"></div>
+                      ) : (
+                        'Сменить пароль'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
+
+      {/* Payment Confirmation Modal - separate AnimatePresence */}
+      {createPortal(
+        <AnimatePresence>
+          {showPaymentConfirmation && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-[999997] flex items-center justify-center px-4 bg-[rgba(13,11,36,0.85)] backdrop-blur-xl"
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                className="relative w-full max-w-[calc(100%-2rem)] md:max-w-md rounded-3xl bg-gradient-to-br from-[rgba(26,22,64,0.95)] to-[rgba(37,31,92,0.95)] backdrop-blur-2xl border border-[rgba(169,152,255,0.3)] shadow-[0_0_80px_rgba(169,152,255,0.2)] max-h-[85vh] overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="p-8 max-h-[calc(85vh-2rem)] overflow-y-auto">
+                  <div className="text-center">
+                    <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 bg-gradient-to-br from-[rgba(244,224,167,0.3)] to-[rgba(169,152,255,0.25)] shadow-[0_0_24px_rgba(244,224,167,0.4)]">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-br from-[#F4E0A7] to-[#A998FF]">
+                        <div className="w-4 h-4 rounded-full bg-[#0D0B24]"></div>
+                      </div>
+                    </div>
+
+                    <h3 className="text-xl font-tech text-[#F4E0A7] mb-2">Подтверждение оплаты</h3>
+                    <p className="text-[#B8B5D1] mb-6">
+                      Вы действительно хотите приобрести {currentPlan.analyses} {currentPlan.analyses === 1 ? 'анализ' : 'анализов'} за {currentPlan.price}₽?
+                    </p>
+
+                    <div className="flex gap-4">
+                      <button
+                        onClick={handleCancelPayment}
+                        disabled={loading}
+                        className={`flex-1 py-3 px-4 rounded-xl border transition-colors ${
+                          loading
+                            ? 'border-[rgba(169,152,255,0.2)] text-[rgba(184,181,209,0.5)] cursor-not-allowed'
+                            : 'border-[rgba(169,152,255,0.3)] text-[#A998FF] hover:border-[rgba(169,152,255,0.5)] hover:text-[#F4E0A7]'
+                        }`}
+                      >
+                        Отменить
+                      </button>
+
+                      <button
+                        onClick={handleConfirmPayment}
+                        disabled={loading}
+                        className={`flex-1 py-3 px-4 rounded-xl transition-colors flex items-center justify-center ${
+                          loading
+                            ? 'bg-[rgba(244,224,167,0.2)] text-[rgba(244,224,167,0.5)] cursor-not-allowed'
+                            : 'bg-gradient-to-r from-[#F4E0A7] to-[#A998FF] text-[#12103A] hover:shadow-[0_0_20px_rgba(244,224,167,0.4)]'
+                        }`}
+                      >
+                        {loading ? (
+                          <span className="flex items-center">
+                            <span className="animate-spin h-4 w-4 mr-2 border-t-2 border-r-2 border-[#12103A] rounded-full"></span>
+                            Оплата...
+                          </span>
+                        ) : (
+                          'Оплатить'
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
+    </>
+  );
+}

@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    container_name: amnis_db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-dream_interpreter}
+      POSTGRES_USER: ${POSTGRES_USER:-Amnis}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Amnis0987}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-Amnis} -d ${POSTGRES_DB:-dream_interpreter}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    container_name: amnis_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    extra_hosts:
+      - "redis.jdh-team.ru:host-gateway"
+
+  backend:
+    build:
+      context: ./BACK
+      dockerfile: Dockerfile
+    container_name: amnis_backend
+    ports:
+      - "8000:8000"
+    command: >
+      sh -c "celery -A celery_app worker --loglevel=info --concurrency=2 &
+             python startup_with_retry.py"
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://Amnis:Amnis0987@db:5432/dream_interpreter}
+      - SECRET_KEY=8079cd21663b08a5d47c014849a28becd07ef7ee84c8585918fcc8a0509cc1224fbbd8769e340a4af4ee0c16940d0523b25686f1
+      - ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./BACK:/app
+      - ./BACK/cookies.json:/app/cookies.json
+    restart: unless-stopped
+    extra_hosts:
+      - "redis.jdh-team.ru:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  frontend:
+    build:
+      context: ./UI
+      dockerfile: Dockerfile
+    container_name: amnis_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    environment:
+      - REACT_APP_API_URL=https://api.jdh-team.ru
+    extra_hosts:
+      - "api.jdh-team.ru:host-gateway"
+
+  telebot:
+    build:
+      context: ./TELEGRAM
+      dockerfile: Dockerfile
+    container_name: amnis_telebot
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-8188302560:AAEUhIhQoGI-uE5nE51mUGJQXwgVcUQWqt0}
+      - BACKEND_BASE_URL=http://backend:8000
+      - DATABASE_URL=postgresql://Amnis:Amnis0987@db:5432/dream_interpreter
+      - SECRET_KEY=8079cd21663b08a5d47c014849a28becd07ef7ee84c8585918fcc8a0509cc1224fbbd8769e340a4af4ee0c16940d0523b25686f1
+    depends_on:
+      db:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    volumes:
+      - ./TELEGRAM:/app
+    restart: unless-stopped
+    extra_hosts:
+      - "api.jdh-team.ru:host-gateway"
+
+volumes:
+  postgres_data:
