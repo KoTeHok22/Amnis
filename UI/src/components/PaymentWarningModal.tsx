@@ -26,7 +26,7 @@ const PaymentWarningModal = ({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-50 z-[999996] flex items-center justify-center">
-          <Dialog.Content className="bg-white rounded-lg p-6 shadow-xl z-[999995] w-full">
+          <Dialog.Content className="bg-white rounded-lg p-6 shadow-xl z-[999995] w-full max-w-md">
             <Dialog.Title className="text-xl font-bold mb-4 text-center">
               Оплата анализа
             </Dialog.Title>

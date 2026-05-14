@@ -1,6 +1,5 @@
 import os
 from sqlalchemy import create_engine, text
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from dotenv import load_dotenv
@@ -14,7 +13,10 @@ engine = create_engine(
     pool_pre_ping=True,
     pool_recycle=300,
 )
-Base = declarative_base()
+
+# Import Base from models so that create_all() sees all registered models
+from models import Base
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def init_db_tables():

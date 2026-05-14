@@ -1,31 +1,24 @@
-import re
-import os
 import json
-from typing import Dict, Any, Optional, Generator, List
+import os
+import re
 from datetime import datetime
-from qwen_api import QwenAPIClient, AccountManager, CookieManager, QwenAPIError
-from models import Chat as ChatModel, User as UserModel
+from typing import Any, Dict, Generator, List, Optional
+
 from database import SessionLocal
-from sqlalchemy.orm import Session
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from models import Chat as ChatModel, User as UserModel
+from openai_api import OpenAIAPIError, OpenAIChatClient
+
+
 class AIChatService:
-    """Сервис для управления чатами с ИИ-агента Qwen."""
+    """Сервис для управления чатами с OpenAI-совместимым API."""
+
     def __init__(self):
-        """Инициализирует сервис чата с ИИ.
-        Устанавливает пути к файлам аккаунтов, куки и пользовательских данных,
-        создает менеджеры аккаунтов и куки, инициализирует клиент API,
-        создает директорию для пользовательских данных и загружает начальный промпт.
-        """
-        self.accounts_file = os.getenv("ACCOUNTS_FILE", "accounts.json")
-        self.cookies_file = os.getenv("COOKIES_FILE", "cookies.json")
+        """Инициализирует сервис чата и локальное хранилище состояний."""
         self.user_data_dir = os.getenv("USER_DATA_DIR", "./user_chats")
-        self.account_manager = None
-        self.cookie_manager = None
-        self.api_client = None
-        self._initialize_client()
+        self.api_client = OpenAIChatClient()
         os.makedirs(self.user_data_dir, exist_ok=True)
         self.initial_prompt = self._load_initial_prompt()
+
     def _load_initial_prompt(self) -> str:
         """Загружает системный промпт из файла.
         Returns:
@@ -37,86 +30,26 @@ class AIChatService:
                 return f.read().strip()
         except FileNotFoundError:
             return "Вы - Amnis, хранитель тайн сновидений. Помогайте пользователям анализировать их сны, раскрывая символы и подсознательные сообщения."
-    def split_text(self, text, chunk_size=4000):
-        """Разделяет текст на части заданного размера, сохраняя целостность кодовых блоков.
-        Args:
-            text: Текст для разделения
-            chunk_size: Максимальный размер части (по умолчанию 4000)
-        Returns:
-            list: Список частей текста
-        """
-        chunks = []
-        current_chunk = ""
-        lines = text.split('\n')
-        in_code_block = False
-        code_language = None
-        for line in lines:
-            if line.strip().startswith("```"):
-                if not in_code_block:
-                    code_language = line.strip().split("```")[-1].strip()
-                in_code_block = not in_code_block
-            if len(current_chunk) + len(line) + 1 > chunk_size:
-                if in_code_block:
-                    current_chunk += "```\n"
-                    chunks.append(current_chunk.strip())
-                    current_chunk = f"```{code_language}\n"
-                else:
-                    chunks.append(current_chunk.strip())
-                    current_chunk = line + "\n"
-            else:
-                current_chunk += line + "\n"
-        if current_chunk:
-            if in_code_block:
-                current_chunk += "```\n"
-            chunks.append(current_chunk.strip())
-        return chunks
-    def escape_special_chars(self, text):
-        """Экранирует специальные символы в тексте, за исключением кодовых блоков.
-        Args:
-            text: Текст для экранирования символов
-        Returns:
-            str: Текст с экранированными символами
-        """
-        special_chars = ['_', '*', '[', ']', '(', ')', '~', '>', '`']
-        result = []
-        i = 0
-        in_code_block = False
-        in_inline_code = False
-        while i < len(text):
-            if i + 2 < len(text) and text[i:i+3] == '```':
-                in_code_block = not in_code_block
-                result.append('```')
-                i += 3
-                continue
-            if text[i] == '`' and not in_code_block:
-                in_inline_code = not in_inline_code
-                result.append('`')
-                i += 1
-                continue
-            if not in_code_block and not in_inline_code:
-                if text[i] == '\\':
-                    result.append('\\\\')
-                elif text[i] in special_chars:
-                    result.append('\\' + text[i])
-                else:
-                    result.append(text[i])
-            else:
-                result.append(text[i])
-            i += 1
-        return ''.join(result)
-    def _initialize_client(self):
-        """Инициализирует клиент API Qwen с использованием менеджеров аккаунтов и куки.
-        Raises:
-            FileNotFoundError: Если файл аккаунтов не найден
-        """
-        try:
-            if not os.path.exists(self.accounts_file):
-                raise FileNotFoundError(f"Файл {self.accounts_file} не найден. Создайте файл с учетными данными Qwen.")
-            self.account_manager = AccountManager(accounts_file_path=self.accounts_file)
-            self.cookie_manager = CookieManager(cookie_file_path=self.cookies_file)
-            self.api_client = QwenAPIClient(self.account_manager, self.cookie_manager)
-        except Exception as e:
-            raise
+
+    def _build_system_prompt(self, user: UserModel, initial_prompt: Optional[str] = None) -> str:
+        previous_chats = sorted(
+            user.chats or [],
+            key=lambda chat: chat.created_at or datetime.min,
+        )
+        previous_summaries = [chat.dream_summary for chat in previous_chats if chat.dream_summary]
+        previous_summaries_text = "\n".join(f"- {summary}" for summary in previous_summaries[-5:])
+
+        prompt_template = initial_prompt or self.initial_prompt
+        prompt = prompt_template.replace("[User's Name]", user.name or "Пользователь")
+        prompt = prompt.replace(
+            "[User's Date of Birth]",
+            user.birth_date.strftime("%Y-%m-%d") if user.birth_date else "не указана",
+        )
+        prompt = prompt.replace("[Integer]", str(user.available_analyses or 0))
+        prompt = prompt.replace("[Price]", "499₽")
+        prompt = prompt.replace("[List]", previous_summaries_text or "Нет предыдущих анализов.")
+        return prompt
+
     def _get_user_chat_file(self, user_phone: str, chat_id: str = None) -> str:
         """Возвращает путь к файлу чата пользователя.
         Args:
@@ -192,59 +125,37 @@ class AIChatService:
             initial_prompt: Начальный промпт для чата (по умолчанию используется системный промпт)
         Returns:
             Dict[str, Any]: Информация о созданном чате
-        Raises:
-            QwenAPIError: Если произошла ошибка при создании чата
         """
         db = SessionLocal()
         try:
             user = db.query(UserModel).filter(UserModel.phone_number == user_phone).first()
             if not user:
-                raise QwenAPIError(f"User with phone {user_phone} not found")
-            previous_chats = db.query(ChatModel).filter(
-                ChatModel.user_id == user.id,
-                ChatModel.dream_summary.isnot(None)
-            ).order_by(ChatModel.created_at.desc()).limit(5).all()
-            previous_summaries = "\n".join(
-                [f"- {chat.dream_summary}" for chat in previous_chats]
-            ) if previous_chats else "Нет предыдущих анализов."
-            available_analyses = user.available_analyses or 0
-            price = "499₽"
-            prompt_template = initial_prompt or self.initial_prompt
-            populated_prompt = prompt_template.replace("[User's Name]", user.name or "Пользователь")
-            populated_prompt = populated_prompt.replace("[User's Date of Birth]", user.birth_date.strftime('%Y-%m-%d') if user.birth_date else "не указана")
-            populated_prompt = populated_prompt.replace("[Integer]", str(available_analyses))
-            populated_prompt = populated_prompt.replace("[Price]", price)
-            populated_prompt = populated_prompt.replace("[List]", previous_summaries)
-            chat_state = self.api_client.create_chat(
-                title=title,
-                chat_type="search"
-            )
+                raise OpenAIAPIError(f"User with phone {user_phone} not found")
+
+            system_message = {
+                "role": "system",
+                "content": self._build_system_prompt(user, initial_prompt),
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+            chat_state = self.api_client.create_chat(title=title, initial_messages=[system_message])
             chat_id = chat_state["chat_id"]
-            chat_state["messages"] = []
+
             self._save_user_chat_state(user_phone, chat_state, chat_id)
             self._set_current_chat_id(user_phone, chat_id)
             self._save_chat_to_db(user_phone, chat_id, title)
-            stream = self.api_client.send_message(
-                chat_state=chat_state,
-                prompt=populated_prompt,
-                chat_type="search",
-                sub_chat_type="search"
-            )
-            for _ in stream:
-                pass
-            self._save_user_chat_state(user_phone, chat_state, chat_id)
             return {
                 "chat_id": chat_id,
                 "title": title,
                 "status": "created"
             }
-        except QwenAPIError as e:
-            raise e
+        except OpenAIAPIError:
+            raise
         except Exception as e:
             db.rollback()
-            raise QwenAPIError(f"Ошибка при создании чата: {str(e)}")
+            raise OpenAIAPIError(f"Ошибка при создании чата: {str(e)}")
         finally:
             db.close()
+
     def _save_chat_to_db(self, user_phone: str, chat_id: str, title: str) -> None:
         """Сохраняет информацию о чате в базу данных.
         Args:
@@ -346,10 +257,11 @@ class AIChatService:
         try:
             current_chat_id = self._get_current_chat_id(user_phone)
             if not current_chat_id:
-                raise QwenAPIError("No active chat found for user.")
+                raise OpenAIAPIError("No active chat found for user.")
             chat_state = self._load_user_chat_state(user_phone, current_chat_id)
             if not chat_state:
-                raise QwenAPIError(f"Failed to load chat state for chat_id: {current_chat_id}")
+                raise OpenAIAPIError(f"Failed to load chat state for chat_id: {current_chat_id}")
+
             messages_history = chat_state.get("messages", [])
             user_message = {
                 "role": "user",
@@ -358,70 +270,75 @@ class AIChatService:
             }
             messages_history.append(user_message)
             chat_state["messages"] = messages_history
-            stream = self.api_client.send_message(
-                chat_state=chat_state,
-                prompt=message,
-                chat_type="search",
-                sub_chat_type="search"
-            )
-            full_response = ""
-            answer_content = ""  # Track only the answer content to send to user
-            for event in stream:
-                if 'choices' in event and event['choices']:
-                    content = event['choices'][0].get('delta', {}).get('content', '')
-                    phase = event['choices'][0].get('delta', {}).get('phase', 'answer')  # Default to 'answer' if no phase specified
 
-                    # Only yield content if it's part of the answer phase (not the think phase)
-                    if phase == 'answer':
-                        if content:
-                            full_response += content
-                            answer_content += content
-                            yield {
-                                "type": "stream",
-                                "content": content,
-                                "phase": phase
-                            }
-                    # Update the full response for think phase too, but don't yield it to user
-                    elif phase == 'think' and content:
-                        full_response += content
-            cleaned_response = answer_content  # Use only the answer content for the final response
-            name_change_match = re.search(r'\[NAME_CHANGE = "([^"]+)"\]', full_response)
+            stream = self.api_client.send_message(chat_state=chat_state, prompt=message)
+            full_response = ""
+
+            answer_content = ""
+            for event in stream:
+
+                choices = event.get("choices") or []
+                if not choices:
+                    continue
+
+                delta = choices[0].get("delta") or {}
+                content = delta.get("content", "")
+
+                if isinstance(content, list):
+                    content = "".join(
+                        part.get("text", "")
+                        for part in content
+                        if isinstance(part, dict)
+                    )
+
+                if content:
+                    full_response += content
+                    answer_content += content
+                    yield {
+                        "type": "stream",
+                        "content": content,
+                        "phase": "answer",
+                    }
+
+            name_change_match = re.search(r'\[NAME_CHANGE\s*=\s*["\']([^"\']+)["\']\]', full_response)
             if name_change_match:
                 new_title = name_change_match.group(1)
                 chat_record = db.query(ChatModel).filter(ChatModel.chat_id == current_chat_id).first()
                 if chat_record:
                     chat_record.title = new_title
                     db.commit()
-                # Don't remove from answer_content since it was not added there
-            symbols_match = re.search(r'\[SYMBOLS = "([^"]+)"\]', full_response)
+
+            symbols_match = re.search(r'\[SYMBOLS\s*=\s*["\']([^"\']+)["\']\]', full_response)
             if symbols_match:
                 summary = symbols_match.group(1)
                 chat_record = db.query(ChatModel).filter(ChatModel.chat_id == current_chat_id).first()
                 if chat_record:
                     chat_record.dream_summary = summary
                     db.commit()
-                # Don't remove from answer_content since it was not added there
+
             if answer_content:
                 assistant_message = {
                     "role": "assistant",
-                    "content": answer_content,  # Store the clean answer content
-                    "timestamp": datetime.utcnow().isoformat()
+                    "content": answer_content,
+                    "timestamp": datetime.utcnow().isoformat(),
                 }
                 messages_history.append(assistant_message)
+
             chat_state["messages"] = messages_history
             self._save_user_chat_state(user_phone, chat_state, current_chat_id)
             yield {
                 "type": "complete",
-                "content": answer_content  # Send only the answer content to the frontend
+                "content": answer_content,
             }
-        except QwenAPIError as e:
+        except OpenAIAPIError:
             db.rollback()
-            raise e
+            raise
         except Exception as e:
             db.rollback()
-            raise QwenAPIError(f"Ошибка при отправке сообщения: {str(e)}")
+            raise OpenAIAPIError(f"Ошибка при отправке сообщения: {str(e)}")
         finally:
             db.close()
+
     def get_user_chats(self, user_phone: str) -> List[Dict[str, Any]]:
         """Получает список чатов пользователя из базы данных.
         Args:
@@ -451,14 +368,7 @@ class AIChatService:
             raise e
         finally:
             db.close()
-    def _get_last_assistant_message_id(self, chat_state: Dict[str, Any]) -> Optional[str]:
-        """Получает идентификатор последнего сообщения от ассистента.
-        Args:
-            chat_state: Состояние чата
-        Returns:
-            Optional[str]: Идентификатор сообщения или None
-        """
-        return chat_state.get('last_message_id')
+
     def clear_chat(self, user_phone: str) -> bool:
         """Очищает текущий чат пользователя.
         Args:
@@ -468,19 +378,24 @@ class AIChatService:
         """
         try:
             current_chat_id = self._get_current_chat_id(user_phone)
-            if current_chat_id:
-                old_chat_state = self._load_user_chat_state(user_phone, current_chat_id)
-                if old_chat_state and 'chat_id' in old_chat_state:
-                    try:
-                        self.api_client.delete_chat(old_chat_state)
-                    except Exception as e:
-                        pass
-                file_path = self._get_user_chat_file(user_phone, current_chat_id)
-                if os.path.exists(file_path):
-                    os.remove(file_path)
+            if not current_chat_id:
+                return True
+
+            chat_state = self._load_user_chat_state(user_phone, current_chat_id)
+            if not chat_state:
+                return False
+
+            system_messages = [
+                message
+                for message in chat_state.get("messages", [])
+                if message.get("role") == "system"
+            ]
+            chat_state["messages"] = system_messages
+            self._save_user_chat_state(user_phone, chat_state, current_chat_id)
             return True
         except Exception as e:
             return False
+
     def deactivate_chat(self, user_phone: str, chat_id: str) -> bool:
         """Деактивирует указанный чат пользователя.
         Args:
@@ -512,4 +427,6 @@ class AIChatService:
             return False
         finally:
             db.close()
+
+
 ai_chat_service = AIChatService()

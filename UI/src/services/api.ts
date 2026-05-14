@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://api.jdh-team.ru';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -49,6 +49,9 @@ export const registerUser = async (phone_number: string, password: string, name:
 
     return { ...response.data, user };
   } catch (error: any) {
+    if (!error.response) {
+      throw { detail: 'Не удалось подключиться к серверу. Проверьте подключение к интернету' };
+    }
     throw error.response?.data || { detail: 'Ошибка при регистрации' };
   }
 };
@@ -67,6 +70,15 @@ export const loginUser = async (phone_number: string, password: string) => {
 
     return response.data;
   } catch (error: any) {
+    if (!error.response) {
+      throw { detail: 'Не удалось подключиться к серверу. Проверьте подключение к интернету' };
+    }
+    if (error.response?.status === 401) {
+      throw { detail: 'Неверный номер телефона или пароль' };
+    }
+    if (error.response?.status >= 500) {
+      throw { detail: 'Сервер временно недоступен. Попробуйте позже' };
+    }
     throw error.response?.data || { detail: 'Ошибка при входе' };
   }
 };

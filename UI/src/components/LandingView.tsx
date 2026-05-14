@@ -101,14 +101,14 @@ export function LandingView({ onStartClick }: LandingViewProps) {
       </section>
 
       {/* How it works */}
-      <section className="relative z-10 px-4 sm:px-6 py-16 sm:py-20 md:py-24 border-t border-[rgba(169,152,255,0.1)]">
+      <section className="relative z-10 px-4 sm:px-6 py-10 sm:py-14 md:py-16 border-t border-[rgba(169,152,255,0.1)]">
         <div className="max-w-5xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-50px" }}
             transition={{ duration: 0.5 }}
-            className="text-center mb-12 sm:mb-16 md:mb-20 relative px-4"
+            className="text-center mb-10 sm:mb-12 md:mb-14 relative px-4"
           >
             <SparkleIcon className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-8 text-[#F4E0A7]" size={24} delay={0} />
             <h2 className="text-[#E8E6F5] mb-3 sm:mb-4 font-mystical">Как это работает</h2>
@@ -117,7 +117,7 @@ export function LandingView({ onStartClick }: LandingViewProps) {
             </p>
           </motion.div>
 
-          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-8 sm:gap-10 md:gap-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
             {steps.map((item, index) => (
               <motion.div
                 key={index}
@@ -137,7 +137,7 @@ export function LandingView({ onStartClick }: LandingViewProps) {
                 </div>
                 
                 {index < steps.length - 1 && (
-                  <div className="hidden md:block absolute top-7 left-[60%] w-[80%]">
+                  <div className="hidden lg:block absolute top-7 left-[60%] w-[80%]">
                     <div className="h-[1px] bg-gradient-to-r from-[rgba(169,152,255,0.3)] to-transparent" />
                     <ArrowRight className="w-4 h-4 text-[#A998FF] opacity-40 absolute right-0 top-1/2 -translate-y-1/2" />
                   </div>
@@ -149,14 +149,14 @@ export function LandingView({ onStartClick }: LandingViewProps) {
       </section>
 
       {/* Features */}
-      <section className="relative z-10 px-4 sm:px-6 py-16 sm:py-20 md:py-24 border-t border-[rgba(169,152,255,0.1)]">
+      <section className="relative z-10 px-4 sm:px-6 py-10 sm:py-14 md:py-16 border-t border-[rgba(169,152,255,0.1)]">
         <div className="max-w-6xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-50px" }}
             transition={{ duration: 0.5 }}
-            className="text-center mb-12 sm:mb-16 md:mb-20 relative px-4"
+            className="text-center mb-10 sm:mb-12 md:mb-14 relative px-4"
           >
             <SparkleIcon className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-8 text-[#F4E0A7]" size={24} delay={0.2} />
             <h2 className="text-[#E8E6F5] mb-3 sm:mb-4 font-mystical">Возможности Amnis</h2>
@@ -173,7 +173,7 @@ export function LandingView({ onStartClick }: LandingViewProps) {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-50px" }}
                 transition={{ duration: 0.4, delay: index * 0.08 }}
-                className="group rounded-3xl p-6 sm:p-8 transition-all duration-300 relative bg-gradient-to-br from-[rgba(26,22,64,0.6)] to-[rgba(37,31,92,0.3)] border border-[rgba(169,152,255,0.15)] backdrop-blur-sm will-change-transform"
+                className="group rounded-3xl p-6 sm:p-8 transition-all duration-300 relative bg-gradient-to-br from-[rgba(26,22,64,0.6)] to-[rgba(37,31,92,0.3)] border border-[rgba(169,152,255,0.15)] backdrop-blur-sm will-change-transform hover:border-[rgba(169,152,255,0.35)] hover:shadow-[0_0_30px_rgba(169,152,255,0.12),inset_0_1px_0_rgba(255,255,255,0.05)]"
                 whileHover={{
                   y: -4,
                 }}
@@ -194,7 +194,7 @@ export function LandingView({ onStartClick }: LandingViewProps) {
       <PricingSection onSelectPlan={onStartClick} />
 
       {/* Final CTA */}
-      <section className="relative z-10 px-4 sm:px-6 py-20 sm:py-28 md:py-32 border-t border-[rgba(169,152,255,0.1)]">
+      <section className="relative z-10 px-4 sm:px-6 py-14 sm:py-20 md:py-24 border-t border-[rgba(169,152,255,0.1)]">
         <div className="max-w-4xl mx-auto text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
