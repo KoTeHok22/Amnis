@@ -239,7 +239,7 @@ export function ProfileModal({ isOpen, onClose, onPurchase }: ProfileModalProps)
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-[999999] flex items-center justify-center px-4 bg-[rgba(13,11,36,0.85)] backdrop-blur-xl"
+              className="fixed inset-0 z-[999997] flex items-center justify-center px-4 bg-[rgba(13,11,36,0.85)] backdrop-blur-xl"
               onClick={onClose}
             >
               <motion.div
@@ -247,7 +247,7 @@ export function ProfileModal({ isOpen, onClose, onPurchase }: ProfileModalProps)
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.95, opacity: 0, y: 20 }}
                 transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                className="relative w-full max-w-[calc(100%-2rem)] md:max-w-3xl max-h-[85vh] rounded-3xl bg-gradient-to-br from-[rgba(26,22,64,0.95)] to-[rgba(37,31,92,0.95)] backdrop-blur-2xl border border-[rgba(169,152,255,0.3)] shadow-[0_0_80px_rgba(169,152,255,0.2)] overflow-hidden"
+                className="relative w-full max-w-3xl max-h-[85vh] rounded-3xl bg-gradient-to-br from-[rgba(26,22,64,0.95)] to-[rgba(37,31,92,0.95)] backdrop-blur-2xl border border-[rgba(169,152,255,0.3)] shadow-[0_0_80px_rgba(169,152,255,0.2)] overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Close Button */}
@@ -476,7 +476,7 @@ export function ProfileModal({ isOpen, onClose, onPurchase }: ProfileModalProps)
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-[999998] flex items-center justify-center px-4 bg-[rgba(13,11,36,0.85)] backdrop-blur-xl"
+              className="fixed inset-0 z-[999999] flex items-center justify-center px-4 bg-[rgba(13,11,36,0.85)] backdrop-blur-xl"
               onClick={() => !loading && setShowPasswordChangeModal(false)}
             >
               <motion.div
@@ -484,7 +484,7 @@ export function ProfileModal({ isOpen, onClose, onPurchase }: ProfileModalProps)
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.95, opacity: 0, y: 20 }}
                 transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                className="relative w-full max-w-[calc(100%-2rem)] md:max-w-md rounded-3xl bg-gradient-to-br from-[rgba(26,22,64,0.95)] to-[rgba(37,31,92,0.95)] backdrop-blur-2xl border border-[rgba(169,152,255,0.3)] shadow-[0_0_80px_rgba(169,152,255,0.2)] max-h-[85vh] overflow-hidden"
+                className="relative w-full max-w-md rounded-3xl bg-gradient-to-br from-[rgba(26,22,64,0.95)] to-[rgba(37,31,92,0.95)] backdrop-blur-2xl border border-[rgba(169,152,255,0.3)] shadow-[0_0_80px_rgba(169,152,255,0.2)] max-h-[85vh] overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="p-8 max-h-[calc(85vh-2rem)] overflow-y-auto">
@@ -509,7 +509,7 @@ export function ProfileModal({ isOpen, onClose, onPurchase }: ProfileModalProps)
                         type="password"
                         value={passwordChangeData.oldPassword}
                         onChange={(e) => setPasswordChangeData({...passwordChangeData, oldPassword: e.target.value})}
-                        className="w-full p-3 rounded-xl bg-[rgba(13,11,36,0.6)] border border-[rgba(169,152,255,0.2)] text-[#E8E6F5] outline-none focus:border-[#A998FF] transition-colors"
+                        className="w-full p-3 rounded-xl bg-[rgba(13,11,36,0.5)] border border-[rgba(169,152,255,0.2)] text-[#E8E6F5] outline-none focus:border-[rgba(169,152,255,0.6)] transition-all duration-300 backdrop-blur-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.3),inset_0_0_0_1px_rgba(169,152,255,0.05)] focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.3),0_0_16px_rgba(169,152,255,0.15),inset_0_0_0_1px_rgba(169,152,255,0.1)]"
                         placeholder="Введите текущий пароль"
                         disabled={loading}
                         autoFocus
@@ -521,7 +521,7 @@ export function ProfileModal({ isOpen, onClose, onPurchase }: ProfileModalProps)
                         type="password"
                         value={passwordChangeData.newPassword}
                         onChange={(e) => setPasswordChangeData({...passwordChangeData, newPassword: e.target.value})}
-                        className="w-full p-3 rounded-xl bg-[rgba(13,11,36,0.6)] border border-[rgba(169,152,255,0.2)] text-[#E8E6F5] outline-none focus:border-[#A998FF] transition-colors"
+                        className="w-full p-3 rounded-xl bg-[rgba(13,11,36,0.5)] border border-[rgba(169,152,255,0.2)] text-[#E8E6F5] outline-none focus:border-[rgba(169,152,255,0.6)] transition-all duration-300 backdrop-blur-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.3),inset_0_0_0_1px_rgba(169,152,255,0.05)] focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.3),0_0_16px_rgba(169,152,255,0.15),inset_0_0_0_1px_rgba(169,152,255,0.1)]"
                         placeholder="Введите новый пароль"
                         disabled={loading}
                       />
@@ -532,7 +532,7 @@ export function ProfileModal({ isOpen, onClose, onPurchase }: ProfileModalProps)
                         type="password"
                         value={passwordChangeData.confirmPassword}
                         onChange={(e) => setPasswordChangeData({...passwordChangeData, confirmPassword: e.target.value})}
-                        className="w-full p-3 rounded-xl bg-[rgba(13,11,36,0.6)] border border-[rgba(169,152,255,0.2)] text-[#E8E6F5] outline-none focus:border-[#A998FF] transition-colors"
+                        className="w-full p-3 rounded-xl bg-[rgba(13,11,36,0.5)] border border-[rgba(169,152,255,0.2)] text-[#E8E6F5] outline-none focus:border-[rgba(169,152,255,0.6)] transition-all duration-300 backdrop-blur-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.3),inset_0_0_0_1px_rgba(169,152,255,0.05)] focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.3),0_0_16px_rgba(169,152,255,0.15),inset_0_0_0_1px_rgba(169,152,255,0.1)]"
                         placeholder="Повторите новый пароль"
                         disabled={loading}
                       />
@@ -576,14 +576,14 @@ export function ProfileModal({ isOpen, onClose, onPurchase }: ProfileModalProps)
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-[999997] flex items-center justify-center px-4 bg-[rgba(13,11,36,0.85)] backdrop-blur-xl"
+              className="fixed inset-0 z-[999999] flex items-center justify-center px-4 bg-[rgba(13,11,36,0.85)] backdrop-blur-xl"
             >
               <motion.div
                 initial={{ scale: 0.9, opacity: 0, y: 20 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.9, opacity: 0, y: 20 }}
                 transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                className="relative w-full max-w-[calc(100%-2rem)] md:max-w-md rounded-3xl bg-gradient-to-br from-[rgba(26,22,64,0.95)] to-[rgba(37,31,92,0.95)] backdrop-blur-2xl border border-[rgba(169,152,255,0.3)] shadow-[0_0_80px_rgba(169,152,255,0.2)] max-h-[85vh] overflow-hidden"
+                className="relative w-full max-w-md rounded-3xl bg-gradient-to-br from-[rgba(26,22,64,0.95)] to-[rgba(37,31,92,0.95)] backdrop-blur-2xl border border-[rgba(169,152,255,0.3)] shadow-[0_0_80px_rgba(169,152,255,0.2)] max-h-[85vh] overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="p-8 max-h-[calc(85vh-2rem)] overflow-y-auto">

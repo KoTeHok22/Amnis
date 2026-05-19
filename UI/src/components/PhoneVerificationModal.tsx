@@ -98,7 +98,7 @@ export function PhoneVerificationModal({
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
             transition={{ duration: 0.3, ease: 'easeOut' }}
             onClick={(e) => e.stopPropagation()}
-            className="rounded-[32px] p-8 sm:p-10 max-w-[calc(100%-2rem)] md:max-w-md w-full relative max-h-[85vh] bg-gradient-to-br from-[rgba(26,22,64,0.95)] to-[rgba(37,31,92,0.9)] border border-[rgba(169,152,255,0.3)] backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.5),0_0_1px_rgba(169,152,255,0.5)_inset] will-change-transform overflow-hidden"
+            className="rounded-[32px] p-8 sm:p-10 max-w-md w-full relative max-h-[85vh] bg-gradient-to-br from-[rgba(26,22,64,0.95)] to-[rgba(37,31,92,0.9)] border border-[rgba(169,152,255,0.3)] backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.5),0_0_1px_rgba(169,152,255,0.5)_inset] will-change-transform overflow-hidden"
           >
             <SparkleIcon className="absolute top-6 left-6 text-[#F4E0A7]" size={18} delay={0} />
             <SparkleIcon className="absolute top-6 right-20 text-[#A998FF]" size={16} delay={0.5} />

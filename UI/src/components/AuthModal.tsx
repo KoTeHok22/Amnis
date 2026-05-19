@@ -273,9 +273,9 @@ export function AuthModal({ isOpen, onClose, onAuth }: AuthModalProps) {
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
               transition={{ duration: 0.3, ease: 'easeOut' }}
               onClick={(e) => e.stopPropagation()}
-              className="rounded-[32px] max-w-[calc(100%-2rem)] md:max-w-lg w-full relative bg-gradient-to-br from-[rgba(26,22,64,0.95)] to-[rgba(37,31,92,0.9)] border border-[rgba(169,152,255,0.3)] backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.5),0_0_1px_rgba(169,152,255,0.5)_inset] will-change-transform max-h-[85vh] overflow-hidden"
+              className="rounded-[32px] max-w-lg w-full relative bg-gradient-to-br from-[rgba(26,22,64,0.95)] to-[rgba(37,31,92,0.9)] border border-[rgba(169,152,255,0.3)] backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.5),0_0_1px_rgba(169,152,255,0.5)_inset] will-change-transform max-h-[85vh] overflow-hidden"
             >
-              <div className="p-8 sm:p-10 overflow-y-auto max-h-[calc(85vh-4rem)] flex-1">
+              <div className="p-6 sm:p-8 overflow-y-auto max-h-[calc(85vh-4rem)] flex-1">
             <SparkleIcon className="absolute top-6 left-6 text-[#F4E0A7]" size={18} delay={0} />
             <SparkleIcon className="absolute top-6 right-20 text-[#A998FF]" size={16} delay={0.5} />
             <SparkleIcon className="absolute bottom-6 left-12 text-[#A998FF]" size={14} delay={1} />
@@ -294,7 +294,7 @@ export function AuthModal({ isOpen, onClose, onAuth }: AuthModalProps) {
               </button>
 
               <div className="relative">
-                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6 mx-auto bg-gradient-to-br from-[rgba(169,152,255,0.3)] to-[rgba(244,224,167,0.25)] shadow-[0_0_24px_rgba(169,152,255,0.4)]">
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 mx-auto bg-gradient-to-br from-[rgba(169,152,255,0.3)] to-[rgba(244,224,167,0.25)] shadow-[0_0_24px_rgba(169,152,255,0.4)]">
                   <Moon className="w-8 h-8 text-[#F4E0A7]" />
                 </div>
 
@@ -305,7 +305,7 @@ export function AuthModal({ isOpen, onClose, onAuth }: AuthModalProps) {
                     <>Регистрация в <span className="font-tech">Amnis</span></>
                   )}
                 </h2>
-                <p className="text-[#B8B5D1] mb-8 leading-relaxed text-center text-sm sm:text-base font-accent" style={{ fontStyle: 'italic' }}>
+                <p className="text-[#B8B5D1] mb-5 leading-relaxed text-center text-sm sm:text-base font-accent" style={{ fontStyle: 'italic' }}>
                   {mode === 'login'
                     ? 'Войдите в свой аккаунт, чтобы продолжить путешествие в мир снов'
                     : 'Создайте аккаунт и начните раскрывать послания вашего подсознания'
@@ -318,7 +318,7 @@ export function AuthModal({ isOpen, onClose, onAuth }: AuthModalProps) {
                   </div>
                 )}
 
-                <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
+                <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
                   <div>
                     <label htmlFor="phone" className="block text-[#E8E6F5] mb-2.5 sm:mb-3 flex items-center gap-2">
                       <Phone className="w-4 h-4 text-[#A998FF]" />
@@ -330,7 +330,7 @@ export function AuthModal({ isOpen, onClose, onAuth }: AuthModalProps) {
                         id="phone"
                         value={phoneNumber}
                         onChange={handlePhoneChange}
-                        className="w-full h-12 px-5 pr-4 rounded-2xl bg-[rgba(13,11,36,0.6)] text-[#E8E6F5] border border-[rgba(169,152,255,0.25)] focus:border-[#A998FF] outline-none transition-all placeholder-[#B8B5D1] backdrop-blur-sm"
+                        className="w-full h-12 px-5 pr-4 rounded-2xl bg-[rgba(13,11,36,0.5)] text-[#E8E6F5] border border-[rgba(169,152,255,0.2)] focus:border-[rgba(169,152,255,0.6)] outline-none transition-all duration-300 placeholder-[rgba(184,181,209,0.5)] backdrop-blur-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.3),inset_0_0_0_1px_rgba(169,152,255,0.05)] focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.3),0_0_16px_rgba(169,152,255,0.15),inset_0_0_0_1px_rgba(169,152,255,0.1)]"
                         placeholder="+7 (999) 123-45-67"
                         required
                         disabled={loading}
@@ -349,7 +349,8 @@ export function AuthModal({ isOpen, onClose, onAuth }: AuthModalProps) {
                         id="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="w-full h-12 px-5 pr-14 rounded-2xl bg-[rgba(13,11,36,0.6)] text-[#E8E6F5] border border-[rgba(169,152,255,0.25)] focus:border-[#A998FF] outline-none transition-all placeholder-[#B8B5D1] backdrop-blur-sm"
+                        autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                        className="w-full h-12 px-5 pr-14 rounded-2xl bg-[rgba(13,11,36,0.5)] text-[#E8E6F5] border border-[rgba(169,152,255,0.2)] focus:border-[rgba(169,152,255,0.6)] outline-none transition-all duration-300 placeholder-[rgba(184,181,209,0.5)] backdrop-blur-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.3),inset_0_0_0_1px_rgba(169,152,255,0.05)] focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.3),0_0_16px_rgba(169,152,255,0.15),inset_0_0_0_1px_rgba(169,152,255,0.1)]"
                         placeholder="••••••••"
                         required
                         minLength={6}
@@ -385,7 +386,7 @@ export function AuthModal({ isOpen, onClose, onAuth }: AuthModalProps) {
                           id="name"
                           value={name}
                           onChange={(e) => setName(e.target.value)}
-                          className="w-full h-12 px-5 rounded-2xl bg-[rgba(13,11,36,0.6)] text-[#E8E6F5] border border-[rgba(169,152,255,0.25)] focus:border-[#A998FF] outline-none transition-all placeholder-[#B8B5D1] backdrop-blur-sm"
+                          className="w-full h-12 px-5 rounded-2xl bg-[rgba(13,11,36,0.5)] text-[#E8E6F5] border border-[rgba(169,152,255,0.2)] focus:border-[rgba(169,152,255,0.6)] outline-none transition-all duration-300 placeholder-[rgba(184,181,209,0.5)] backdrop-blur-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.3),inset_0_0_0_1px_rgba(169,152,255,0.05)] focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.3),0_0_16px_rgba(169,152,255,0.15),inset_0_0_0_1px_rgba(169,152,255,0.1)]"
                           placeholder="Ваше имя"
                           required={mode === 'register'}
                           disabled={loading}
@@ -404,7 +405,7 @@ export function AuthModal({ isOpen, onClose, onAuth }: AuthModalProps) {
                           id="birthDate"
                           value={birthDate}
                           onChange={(e) => setBirthDate(e.target.value)}
-                          className="w-full h-12 px-5 rounded-2xl bg-[rgba(13,11,36,0.6)] text-[#E8E6F5] border border-[rgba(169,152,255,0.25)] focus:border-[#A998FF] outline-none transition-all placeholder-[#B8B5D1] backdrop-blur-sm"
+                          className="w-full h-12 px-5 rounded-2xl bg-[rgba(13,11,36,0.5)] text-[#E8E6F5] border border-[rgba(169,152,255,0.2)] focus:border-[rgba(169,152,255,0.6)] outline-none transition-all duration-300 placeholder-[rgba(184,181,209,0.5)] backdrop-blur-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.3),inset_0_0_0_1px_rgba(169,152,255,0.05)] focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.3),0_0_16px_rgba(169,152,255,0.15),inset_0_0_0_1px_rgba(169,152,255,0.1)]"
                           required={mode === 'register'}
                           disabled={loading}
                           max={new Date().toISOString().split('T')[0]}
@@ -421,7 +422,8 @@ export function AuthModal({ isOpen, onClose, onAuth }: AuthModalProps) {
                           id="confirmPassword"
                           value={confirmPassword}
                           onChange={(e) => setConfirmPassword(e.target.value)}
-                          className="w-full h-12 px-5 pr-14 rounded-2xl bg-[rgba(13,11,36,0.6)] text-[#E8E6F5] border border-[rgba(169,152,255,0.25)] focus:border-[#A998FF] outline-none transition-all placeholder-[#B8B5D1] backdrop-blur-sm"
+                          autoComplete="new-password"
+                          className="w-full h-12 px-5 pr-14 rounded-2xl bg-[rgba(13,11,36,0.5)] text-[#E8E6F5] border border-[rgba(169,152,255,0.2)] focus:border-[rgba(169,152,255,0.6)] outline-none transition-all duration-300 placeholder-[rgba(184,181,209,0.5)] backdrop-blur-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.3),inset_0_0_0_1px_rgba(169,152,255,0.05)] focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.3),0_0_16px_rgba(169,152,255,0.15),inset_0_0_0_1px_rgba(169,152,255,0.1)]"
                           placeholder="••••••••"
                           required={mode === 'register'}
                           minLength={6}
@@ -457,7 +459,7 @@ export function AuthModal({ isOpen, onClose, onAuth }: AuthModalProps) {
                     </motion.div>
                   )}
 
-                  <PrimaryCTA className="w-full mt-6 sm:mt-8" disabled={loading}>
+                  <PrimaryCTA className="w-full mt-4 sm:mt-6" disabled={loading}>
                     {loading ? (
                       <div className="flex items-center justify-center">
                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>

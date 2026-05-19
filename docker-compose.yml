@@ -49,6 +49,9 @@ services:
       - ACCESS_TOKEN_EXPIRE_MINUTES=30
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://flick-api.gleeze.com/v1}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-qwen-3.5}
     depends_on:
       db:
         condition: service_healthy
@@ -56,7 +59,6 @@ services:
         condition: service_healthy
     volumes:
       - ./BACK:/app
-      - ./BACK/cookies.json:/app/cookies.json
     restart: unless-stopped
     extra_hosts:
       - "redis.jdh-team.ru:host-gateway"
@@ -82,31 +84,30 @@ services:
       - "3000:80"
     depends_on:
       - backend
-    environment:
-      - REACT_APP_API_URL=https://api.jdh-team.ru
     extra_hosts:
       - "api.jdh-team.ru:host-gateway"
 
-  telebot:
-    build:
-      context: ./TELEGRAM
-      dockerfile: Dockerfile
-    container_name: amnis_telebot
-    environment:
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-8188302560:AAEUhIhQoGI-uE5nE51mUGJQXwgVcUQWqt0}
-      - BACKEND_BASE_URL=http://backend:8000
-      - DATABASE_URL=postgresql://Amnis:Amnis0987@db:5432/dream_interpreter
-      - SECRET_KEY=8079cd21663b08a5d47c014849a28becd07ef7ee84c8585918fcc8a0509cc1224fbbd8769e340a4af4ee0c16940d0523b25686f1
-    depends_on:
-      db:
-        condition: service_healthy
-      backend:
-        condition: service_healthy
-    volumes:
-      - ./TELEGRAM:/app
-    restart: unless-stopped
-    extra_hosts:
-      - "api.jdh-team.ru:host-gateway"
+  # telebot service disabled — TELEGRAM/ directory not present in repository
+  # telebot:
+  #   build:
+  #     context: ./TELEGRAM
+  #     dockerfile: Dockerfile
+  #   container_name: amnis_telebot
+  #   environment:
+  #     - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-8188302560:AAEUhIhQoGI-uE5nE51mUGJQXwgVcUQWqt0}
+  #     - BACKEND_BASE_URL=http://backend:8000
+  #     - DATABASE_URL=postgresql://Amnis:Amnis0987@db:5432/dream_interpreter
+  #     - SECRET_KEY=8079cd21663b08a5d47c014849a28becd07ef7ee84c8585918fcc8a0509cc1224fbbd8769e340a4af4ee0c16940d0523b25686f1
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #     backend:
+  #       condition: service_healthy
+  #   volumes:
+  #     - ./TELEGRAM:/app
+  #   restart: unless-stopped
+  #   extra_hosts:
+  #     - "api.jdh-team.ru:host-gateway"
 
 volumes:
   postgres_data:

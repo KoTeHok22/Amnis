@@ -88,7 +88,16 @@ def main():
     
     # Run migrations with retry
     if not run_migrations_with_retry():
-        logger.error("Failed to run database migrations after all attempts. Exiting.")
+        logger.warning("Migration via alembic failed, falling back to direct table creation...")
+    
+    # Always ensure tables exist as a safety net (idempotent)
+    try:
+        from models import Base
+        from database import engine
+        Base.metadata.create_all(bind=engine)
+        logger.info("Direct table creation check completed (create_all).")
+    except Exception as e:
+        logger.error(f"Fallback create_all also failed: {e}")
         sys.exit(1)
     
     logger.info("Database initialization successful. Starting application server...")

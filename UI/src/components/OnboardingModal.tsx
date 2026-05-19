@@ -56,7 +56,7 @@ export function OnboardingModal({ isOpen, onClose, onSubmit }: OnboardingModalPr
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
             transition={{ duration: 0.3, ease: 'easeOut' }}
             onClick={(e) => e.stopPropagation()}
-            className="rounded-[32px] max-w-[calc(100%-2rem)] md:max-w-xl w-full relative max-h-[85vh] overflow-hidden"
+            className="rounded-[32px] max-w-xl w-full relative max-h-[85vh] overflow-hidden"
             style={{
               background: 'linear-gradient(135deg, rgba(26, 22, 64, 0.95), rgba(37, 31, 92, 0.9))',
               border: '1px solid rgba(169, 152, 255, 0.3)',
@@ -113,10 +113,7 @@ export function OnboardingModal({ isOpen, onClose, onSubmit }: OnboardingModalPr
                     id="name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full h-12 px-5 rounded-2xl bg-[rgba(13,11,36,0.6)] text-[#E8E6F5] border border-[rgba(169,152,255,0.25)] focus:border-[#A998FF] outline-none transition-all placeholder-[#B8B5D1]"
-                    style={{
-                      backdropFilter: 'blur(10px)',
-                    }}
+                    className="w-full h-12 px-5 rounded-2xl bg-[rgba(13,11,36,0.5)] text-[#E8E6F5] border border-[rgba(169,152,255,0.2)] focus:border-[rgba(169,152,255,0.6)] outline-none transition-all duration-300 placeholder-[rgba(184,181,209,0.5)] backdrop-blur-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.3),inset_0_0_0_1px_rgba(169,152,255,0.05)] focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.3),0_0_16px_rgba(169,152,255,0.15),inset_0_0_0_1px_rgba(169,152,255,0.1)]"
                     placeholder="Введите ваше имя"
                     required
                   />
@@ -132,10 +129,7 @@ export function OnboardingModal({ isOpen, onClose, onSubmit }: OnboardingModalPr
                     id="birthDate"
                     value={birthDate}
                     onChange={(e) => setBirthDate(e.target.value)}
-                    className="w-full h-12 px-5 rounded-2xl bg-[rgba(13,11,36,0.6)] text-[#E8E6F5] border border-[rgba(169,152,255,0.25)] focus:border-[#A998FF] outline-none transition-all"
-                    style={{
-                      backdropFilter: 'blur(10px)',
-                    }}
+                    className="w-full h-12 px-5 rounded-2xl bg-[rgba(13,11,36,0.5)] text-[#E8E6F5] border border-[rgba(169,152,255,0.2)] focus:border-[rgba(169,152,255,0.6)] outline-none transition-all duration-300 backdrop-blur-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.3),inset_0_0_0_1px_rgba(169,152,255,0.05)] focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.3),0_0_16px_rgba(169,152,255,0.15),inset_0_0_0_1px_rgba(169,152,255,0.1)]"
                     required
                   />
                 </div>

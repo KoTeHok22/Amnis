@@ -141,7 +141,7 @@ export function PricingCard({ plan, index, onSelect }: PricingCardProps) {
       style={{ padding: '10px', paddingTop: '20px' }}
     >
       <div
-        className={`relative rounded-3xl p-6 sm:p-7 backdrop-blur-sm flex flex-col transition-transform duration-200 ease-out h-[420px] ${
+        className={`relative rounded-3xl p-6 sm:p-7 backdrop-blur-sm flex flex-col transition-transform duration-200 ease-out min-h-[380px] ${
           plan.popular
             ? 'bg-gradient-to-br from-[rgba(244,224,167,0.15)] to-[rgba(169,152,255,0.12)] border-2 border-[rgba(244,224,167,0.5)] shadow-[0_0_40px_rgba(244,224,167,0.25)]'
             : 'bg-gradient-to-br from-[rgba(26,22,64,0.6)] to-[rgba(37,31,92,0.3)] border border-[rgba(169,152,255,0.2)]'

@@ -182,7 +182,7 @@ export function ResetPasswordModal({ isOpen, onClose, onReset }: ResetPasswordMo
           onClick={onClose}
         >
           <motion.div
-            className="relative bg-[#1A1640] rounded-3xl p-6 sm:p-8 w-full max-w-[calc(100%-2rem)] md:max-w-lg max-h-[85vh] overflow-y-auto"
+            className="relative bg-[#1A1640] rounded-3xl p-6 sm:p-8 w-full max-w-lg max-h-[85vh] overflow-y-auto"
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
@@ -229,7 +229,7 @@ export function ResetPasswordModal({ isOpen, onClose, onReset }: ResetPasswordMo
                         id="reset-phone"
                         value={phoneNumber}
                         onChange={handlePhoneChange}
-                        className="w-full h-12 px-5 pr-4 rounded-2xl bg-[rgba(13,11,36,0.6)] text-[#E8E6F5] border border-[rgba(169,152,255,0.25)] focus:border-[#A998FF] outline-none transition-all placeholder-[#B8B5D1] backdrop-blur-sm"
+                        className="w-full h-12 px-5 pr-4 rounded-2xl bg-[rgba(13,11,36,0.5)] text-[#E8E6F5] border border-[rgba(169,152,255,0.2)] focus:border-[rgba(169,152,255,0.6)] outline-none transition-all duration-300 placeholder-[rgba(184,181,209,0.5)] backdrop-blur-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.3),inset_0_0_0_1px_rgba(169,152,255,0.05)] focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.3),0_0_16px_rgba(169,152,255,0.15),inset_0_0_0_1px_rgba(169,152,255,0.1)]"
                         placeholder="+7 (999) 123-45-67"
                         required
                       />
@@ -366,7 +366,7 @@ export function ResetPasswordModal({ isOpen, onClose, onReset }: ResetPasswordMo
                         id="new-password"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
-                        className="w-full h-12 px-5 pr-14 rounded-2xl bg-[rgba(13,11,36,0.6)] text-[#E8E6F5] border border-[rgba(169,152,255,0.25)] focus:border-[#A998FF] outline-none transition-all placeholder-[#B8B5D1] backdrop-blur-sm"
+                        className="w-full h-12 px-5 pr-14 rounded-2xl bg-[rgba(13,11,36,0.5)] text-[#E8E6F5] border border-[rgba(169,152,255,0.2)] focus:border-[rgba(169,152,255,0.6)] outline-none transition-all duration-300 placeholder-[rgba(184,181,209,0.5)] backdrop-blur-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.3),inset_0_0_0_1px_rgba(169,152,255,0.05)] focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.3),0_0_16px_rgba(169,152,255,0.15),inset_0_0_0_1px_rgba(169,152,255,0.1)]"
                         placeholder="••••••••"
                         required
                         minLength={6}
@@ -392,7 +392,7 @@ export function ResetPasswordModal({ isOpen, onClose, onReset }: ResetPasswordMo
                         id="confirm-new-password"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
-                        className="w-full h-12 px-5 pr-14 rounded-2xl bg-[rgba(13,11,36,0.6)] text-[#E8E6F5] border border-[rgba(169,152,255,0.25)] focus:border-[#A998FF] outline-none transition-all placeholder-[#B8B5D1] backdrop-blur-sm"
+                        className="w-full h-12 px-5 pr-14 rounded-2xl bg-[rgba(13,11,36,0.5)] text-[#E8E6F5] border border-[rgba(169,152,255,0.2)] focus:border-[rgba(169,152,255,0.6)] outline-none transition-all duration-300 placeholder-[rgba(184,181,209,0.5)] backdrop-blur-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.3),inset_0_0_0_1px_rgba(169,152,255,0.05)] focus:shadow-[inset_0_2px_4px_rgba(0,0,0,0.3),0_0_16px_rgba(169,152,255,0.15),inset_0_0_0_1px_rgba(169,152,255,0.1)]"
                         placeholder="••••••••"
                         required
                         minLength={6}
