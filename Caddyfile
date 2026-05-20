@@ -48,7 +48,7 @@ api.shutdown-team.ru {
 }
 
 amnis.jdh-team.ru {
-    reverse_proxy 127.0.0.1:3000
+    reverse_proxy 127.0.0.1:3891
 }
 
 api.jdh-team.ru {

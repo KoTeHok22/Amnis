@@ -98,26 +98,39 @@ export const sendMessageStream = async (message: string, onMessage: (data: any) 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
+    const processSseChunk = (chunk: string) => {
+      for (const line of chunk.split('\n')) {
+        if (!line.startsWith('data: ')) {
+          continue;
+        }
+
+        try {
+          onMessage(JSON.parse(line.slice(6)));
+        } catch (e) {
+          console.error('Error parsing SSE data:', e);
+        }
+      }
+    };
 
     try {
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          break;
+        }
 
         buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || ''; // Keep the last incomplete line in buffer
+        const events = buffer.split('\n\n');
+        buffer = events.pop() || '';
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6)); // Remove 'data: ' prefix
-              onMessage(data);
-            } catch (e) {
-              console.error('Error parsing SSE data:', e);
-            }
-          }
+        for (const event of events) {
+          processSseChunk(event);
         }
+      }
+
+      buffer += decoder.decode();
+      if (buffer.trim()) {
+        processSseChunk(buffer);
       }
     } finally {
       reader.releaseLock();

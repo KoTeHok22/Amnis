@@ -1,15 +1,12 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:15
-    container_name: amnis_db
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-dream_interpreter}
       POSTGRES_USER: ${POSTGRES_USER:-Amnis}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Amnis0987}
     ports:
-      - "5432:5432"
+      - "15432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./db-init:/docker-entrypoint-initdb.d
@@ -21,9 +18,8 @@ services:
 
   redis:
     image: redis:7
-    container_name: amnis_redis
     ports:
-      - "6379:6379"
+      - "16379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -36,9 +32,8 @@ services:
     build:
       context: ./BACK
       dockerfile: Dockerfile
-    container_name: amnis_backend
     ports:
-      - "8000:8000"
+      - "18080:8000"
     command: >
       sh -c "celery -A celery_app worker --loglevel=info --concurrency=2 &
              python startup_with_retry.py"
@@ -52,6 +47,7 @@ services:
       - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://flick-api.gleeze.com/v1}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENAI_MODEL=${OPENAI_MODEL:-qwen-3.5}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-https://amnis.jdh-team.ru,http://amnis.jdh-team.ru,http://localhost:3891,http://127.0.0.1:3891,http://localhost:8000,http://127.0.0.1:8000}
     depends_on:
       db:
         condition: service_healthy
@@ -79,9 +75,8 @@ services:
     build:
       context: ./UI
       dockerfile: Dockerfile
-    container_name: amnis_frontend
     ports:
-      - "3000:80"
+      - "3891:80"
     depends_on:
       - backend
     extra_hosts:

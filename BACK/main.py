@@ -42,19 +42,24 @@ def normalize_phone_number(phone_number: str) -> str:
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 app = FastAPI()
 
-# CORS configuration - specify exact origins for production
+
+def get_allowed_origins() -> list[str]:
+    configured_origins = os.getenv("CORS_ALLOWED_ORIGINS")
+    if configured_origins:
+        return [origin.strip() for origin in configured_origins.split(",") if origin.strip()]
+
+    return [
+        "https://amnis.jdh-team.ru",
+        "http://amnis.jdh-team.ru",
+        "http://localhost:3891",
+        "http://127.0.0.1:3891",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",      # React dev server
-        "http://127.0.0.1:3000",      # Alternative localhost
-        "http://localhost:8000",      # Self-origin
-        "http://127.0.0.1:8000",      # Alternative self-origin
-        "https://api.jdh-team.ru",    # Production backend
-        "https://dream-interpreter.jdh-team.ru",  # Production frontend
-        "http://dream-interpreter.jdh-team.ru",   # Alternative protocol
-        "https://amnis.jdh-team.ru",  # Production frontend domain from error
-    ],
+    allow_origins=get_allowed_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -630,12 +635,21 @@ def send_message_stream(
 
     def event_generator():
         try:
+            yield ": connected\n\n"
             for chunk in ai_chat_service.send_message(user.phone_number, request.message):
                 yield f"data: {json.dumps(chunk)}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream; charset=utf-8",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 @app.get("/chat/task/{task_id}")
 def get_task_result(task_id: str):
     """Возвращает результат обработки сообщения

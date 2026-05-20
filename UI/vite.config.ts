@@ -56,5 +56,19 @@
     server: {
       port: 3000,
       open: true,
+      proxy: {
+        '/register': 'http://127.0.0.1:18080',
+        '/login': 'http://127.0.0.1:18080',
+        '/verify-token': 'http://127.0.0.1:18080',
+        '/auth': 'http://127.0.0.1:18080',
+        '/profile': 'http://127.0.0.1:18080',
+        '/change-password': 'http://127.0.0.1:18080',
+        '/payment': 'http://127.0.0.1:18080',
+        '/subscription': 'http://127.0.0.1:18080',
+        '/chat': 'http://127.0.0.1:18080',
+        '/chats': 'http://127.0.0.1:18080',
+        '/initial-prompt': 'http://127.0.0.1:18080',
+        '/health': 'http://127.0.0.1:18080',
+      },
     },
   });
