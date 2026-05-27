@@ -1,0 +1,20 @@
+{
+  "name": "freellm",
+  "version": "1.0.0",
+  "description": "This project exposes an OpenAI-compatible API backed by the free Qwen AI service at chat.qwen.ai.",
+  "main": "server.js",
+  "directories": {
+    "example": "examples"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "playwright": "^1.60.0"
+  }
+}

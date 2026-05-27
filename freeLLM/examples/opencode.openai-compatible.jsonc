@@ -1,0 +1,41 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  "provider": {
+    "advisor": {
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "apiKey": "not-required",
+        "baseURL": "http://127.0.0.1:11434/v1",
+        "timeout": 300000,
+        "chunkTimeout": 120000
+      },
+      "models": {
+        "claude-opus-4.7": {
+          "name": "Claude Opus 4.7 Advisor",
+          "reasoning": false,
+          "temperature": true,
+          "tool_call": false,
+          "limit": {
+            "context": 200000,
+            "output": 16384
+          },
+          "cost": {
+            "input": 0,
+            "output": 0
+          },
+          "modalities": {
+            "input": ["text"],
+            "output": ["text"]
+          },
+          "provider": {
+            "npm": "@ai-sdk/openai-compatible"
+          }
+        }
+      }
+    }
+  },
+
+  "model": "advisor/claude-opus-4.7",
+  "small_model": "advisor/claude-opus-4.7"
+}
