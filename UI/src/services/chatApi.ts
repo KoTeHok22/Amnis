@@ -75,7 +75,7 @@ export const sendMessage = async (message: string) => {
   }
 };
 
-export const sendMessageStream = async (message: string, onMessage: (data: any) => void) => {
+export const sendMessageStream = async (message: string, onMessage: (data: any) => void): Promise<void> => {
   try {
     const token = localStorage.getItem('access_token');
     const response = await fetch(`${API_BASE_URL}/chat/send-stream`, {
@@ -88,7 +88,8 @@ export const sendMessageStream = async (message: string, onMessage: (data: any) 
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorText = await response.text().catch(() => '');
+      throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
     }
 
     if (!response.body) {
@@ -98,46 +99,123 @@ export const sendMessageStream = async (message: string, onMessage: (data: any) 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
-    const processSseChunk = (chunk: string) => {
-      for (const line of chunk.split('\n')) {
-        if (!line.startsWith('data: ')) {
-          continue;
-        }
 
-        try {
-          onMessage(JSON.parse(line.slice(6)));
-        } catch (e) {
-          console.error('Error parsing SSE data:', e);
-        }
+    const processLine = (line: string) => {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith('data:')) return;
+      const payload = trimmed.slice(5).trim();
+      if (!payload) return;
+      try {
+        onMessage(JSON.parse(payload));
+      } catch {
       }
     };
 
     try {
       while (true) {
         const { done, value } = await reader.read();
-        if (done) {
-          break;
-        }
+        if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
-        const events = buffer.split('\n\n');
-        buffer = events.pop() || '';
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
 
-        for (const event of events) {
-          processSseChunk(event);
+        for (const line of lines) {
+          processLine(line);
         }
       }
 
       buffer += decoder.decode();
       if (buffer.trim()) {
-        processSseChunk(buffer);
+        const lines = buffer.split('\n');
+        for (const line of lines) {
+          processLine(line);
+        }
       }
     } finally {
       reader.releaseLock();
     }
   } catch (error: any) {
-    console.error('Error in sendMessageStream:', error);
     throw error;
+  }
+};
+
+export const getStreamStatus = async (): Promise<{
+  is_generating: boolean;
+  partial_content: string;
+  position: number;
+  chat_id: string | null;
+  status: string | null;
+}> => {
+  try {
+    const token = localStorage.getItem('access_token');
+    const response = await fetch(`${API_BASE_URL}/chat/stream-status`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      return { is_generating: false, partial_content: '', position: 0, chat_id: null, status: null };
+    }
+    return response.json();
+  } catch {
+    return { is_generating: false, partial_content: '', position: 0, chat_id: null, status: null };
+  }
+};
+
+export const listenToStream = async (position: number, onMessage: (data: any) => void): Promise<void> => {
+  try {
+    const token = localStorage.getItem('access_token');
+    const response = await fetch(`${API_BASE_URL}/chat/stream/listen?position=${position}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    if (!response.body) {
+      throw new Error('ReadableStream not supported.');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    const processLine = (line: string) => {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith('data:')) return;
+      const payload = trimmed.slice(5).trim();
+      if (!payload) return;
+      try {
+        onMessage(JSON.parse(payload));
+      } catch {
+      }
+    };
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          processLine(line);
+        }
+      }
+
+      buffer += decoder.decode();
+      if (buffer.trim()) {
+        const lines = buffer.split('\n');
+        for (const line of lines) {
+          processLine(line);
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  } catch {
   }
 };
 

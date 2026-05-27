@@ -6,7 +6,7 @@ import { FloatingSparkles } from './SparkleIcon';
 import { Send, Mic, MicOff, Menu, Moon, Plus, MessageSquare, User, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
-import { createChat, sendMessage, sendMessageStream, getUserChats, switchChat, deleteChat, getChatMessages, updateChatTitle } from '../services/chatApi';
+import { createChat, sendMessage, sendMessageStream, getUserChats, switchChat, deleteChat, getChatMessages, updateChatTitle, getStreamStatus, listenToStream } from '../services/chatApi';
 import { ProfileModal } from './ProfileModal';
 import PaymentWarningModal from './PaymentWarningModal';
 import { usePayment } from '../context/PaymentContext';
@@ -118,7 +118,10 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const recognitionRef = useRef<any>(null); // Reference to hold the recognition instance
+  const recognitionRef = useRef<any>(null);
+  const streamTextRef = useRef<string>('');
+  const [, setRenderTick] = useState(0);
+  const isStreamingRef = useRef<boolean>(false);
   
   const pricingPlans = [
     { id: 'plan-1', name: 'Одиночный', analyses: 1, price: 199, pricePerAnalysis: 199, popular: false },
@@ -134,7 +137,113 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
-  
+
+  useEffect(() => {
+    if (!isAuthenticated || !currentChatId) return;
+
+    let cancelled = false;
+
+    const reconnect = async () => {
+      try {
+        const status = await getStreamStatus();
+        if (cancelled) return;
+        if (!status.is_generating) return;
+
+        isStreamingRef.current = true;
+        setIsAiTyping(true);
+
+        const aiResponseId = `ai-${Date.now()}`;
+        streamTextRef.current = status.partial_content || '';
+
+        if (streamTextRef.current) {
+          setMessages(prev => {
+            const hasStreamingMsg = prev.some(msg => msg.id.startsWith('ai-reconnect-') || (msg.id.startsWith('ai-') && !msg.isUser && !msg.text));
+            if (hasStreamingMsg) {
+              return prev.map(msg =>
+                (msg.id.startsWith('ai-reconnect-') || (msg.id.startsWith('ai-') && !msg.isUser && !msg.text))
+                  ? { ...msg, text: streamTextRef.current }
+                  : msg
+              );
+            }
+            return [...prev, {
+              id: aiResponseId,
+              text: streamTextRef.current,
+              isUser: false,
+              timestamp: new Date(),
+            }];
+          });
+          setRenderTick(n => n + 1);
+        } else {
+          setMessages(prev => [...prev, {
+            id: aiResponseId,
+            text: '',
+            isUser: false,
+            timestamp: new Date(),
+          }]);
+        }
+
+        const handleStreamData = (data: any) => {
+          if (cancelled) return;
+          if (data.type === 'stream' && data.content) {
+            streamTextRef.current += data.content;
+            setRenderTick(n => n + 1);
+            setMessages(prev => {
+              const idx = prev.findIndex(msg => msg.id === aiResponseId);
+              if (idx === -1) return prev;
+              const updated = [...prev];
+              updated[idx] = { ...updated[idx], text: streamTextRef.current };
+              return updated;
+            });
+          } else if (data.type === 'complete') {
+            isStreamingRef.current = false;
+            setIsAiTyping(false);
+            const finalContent = data.content || streamTextRef.current;
+            let cleanContent = finalContent;
+            const nameChangeMatch = cleanContent.match(/\[NAME_CHANGE\s*=\s*["']([^"']*)["']\]/);
+            if (nameChangeMatch) {
+              cleanContent = cleanContent.replace(nameChangeMatch[0], '').trim();
+              if (currentChatId) {
+                updateChatTitle(currentChatId, nameChangeMatch[1]).catch(console.error);
+                setCurrentChatTitle(nameChangeMatch[1]);
+              }
+            }
+            const symbolsMatch = cleanContent.match(/\[SYMBOLS\s*=\s*["']([^"']*)["']\]/);
+            if (symbolsMatch) {
+              cleanContent = cleanContent.replace(symbolsMatch[0], '').trim();
+            }
+            const { processedContent } = processMessageContent(cleanContent);
+            setMessages(prev => {
+              const idx = prev.findIndex(msg => msg.id === aiResponseId);
+              if (idx === -1) return prev;
+              const updated = [...prev];
+              updated[idx] = { ...updated[idx], text: processedContent };
+              return updated;
+            });
+          } else if (data.error) {
+            isStreamingRef.current = false;
+            setIsAiTyping(false);
+          }
+        };
+
+        await listenToStream(status.position, handleStreamData);
+
+        if (!cancelled) {
+          isStreamingRef.current = false;
+          setIsAiTyping(false);
+        }
+      } catch {
+        if (!cancelled) {
+          isStreamingRef.current = false;
+          setIsAiTyping(false);
+        }
+      }
+    };
+
+    reconnect();
+
+    return () => { cancelled = true; };
+  }, [isAuthenticated, currentChatId]);
+
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -247,6 +356,9 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
   };
   
   const handleCreateNewChat = async () => {
+    isStreamingRef.current = false;
+    streamTextRef.current = '';
+    setIsAiTyping(false);
     // Set the states first to show the modal
     setIsCreatingChat(true);
     setShowCreatingChatModal(true);
@@ -308,6 +420,9 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
   };
   
   const handleSelectChat = async (chat: Chat) => {
+    isStreamingRef.current = false;
+    streamTextRef.current = '';
+    setIsAiTyping(false);
     try {
       // Switch to the selected chat
       const switchResult = await switchChat(chat.id);
@@ -418,9 +533,8 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
   
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isAiTyping || !currentChatId) return;
-    // Stop recording if it's active
     if (isRecording) {
-      stopRecording(); // This will stop the recording properly
+      stopRecording();
     }
     const userMessage: Message = {
       id: `user-${Date.now()}`,
@@ -431,108 +545,103 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setIsAiTyping(true);
+    isStreamingRef.current = true;
+
     try {
-      // Create an AI response message placeholder with a distinctive ID
       const aiResponseId = `ai-${Date.now()}`;
+      streamTextRef.current = '';
       const initialAiMessage: Message = {
         id: aiResponseId,
         text: '',
         isUser: false,
         timestamp: new Date(),
       };
-      // Add the AI placeholder to messages
       setMessages(prev => [...prev, initialAiMessage]);
-      // Use the streaming endpoint to get real-time responses
-      await sendMessageStream(inputValue, (data) => {
-        setMessages(prev => {
-          const updatedMessages = [...prev];
-          const aiMessageIndex = updatedMessages.findIndex(msg => msg.id === aiResponseId);
-          if (aiMessageIndex !== -1) {
-            if (data.type === 'stream' && data.content) {
-              // Append streaming content to existing text
-              updatedMessages[aiMessageIndex] = {
-                ...updatedMessages[aiMessageIndex],
-                text: updatedMessages[aiMessageIndex].text + data.content
-              };
-            } else if (data.type === 'complete' && data.content) {
-              // Extract and process triggers without showing them to the user
-              let contentWithoutTriggers = data.content;
-              let nameChangeValue = null;
-              let symbolsValue = null;
-              // Extract NAME_CHANGE trigger
-              const nameChangeMatch = contentWithoutTriggers.match(/\[NAME_CHANGE\s*=\s*["']([^"']*)["']\]/);
-              if (nameChangeMatch) {
-                nameChangeValue = nameChangeMatch[1];
-                // Remove the trigger from the content shown to user
-                contentWithoutTriggers = contentWithoutTriggers.replace(nameChangeMatch[0], '').trim();
-              }
-              // Extract SYMBOLS trigger (dream summary)
-              const symbolsMatch = contentWithoutTriggers.match(/\[SYMBOLS\s*=\s*["']([^"']*)["']\]/);
-              if (symbolsMatch) {
-                symbolsValue = symbolsMatch[1];
-                // Remove the trigger from the content shown to user
-                contentWithoutTriggers = contentWithoutTriggers.replace(symbolsMatch[0], '').trim();
-              }
-              // Process other triggers like payment
-              const {
-                processedContent: additionalProcessedContent,
-                hasPaymentTrigger,
-                hasCreditTrigger,
-                nameChangeValue: newExtractedNameChangeValue,
-                symbolsValue: newExtractedSymbolsValue
-              } = processMessageContent(contentWithoutTriggers);
-              updatedMessages[aiMessageIndex] = {
-                ...updatedMessages[aiMessageIndex],
-                text: additionalProcessedContent
-              };
-              // After updating the message, handle the triggers separately
-              const actualNameChangeValue = nameChangeValue || newExtractedNameChangeValue;
-              const actualSymbolsValue = symbolsValue || newExtractedSymbolsValue;
-              if (actualNameChangeValue && currentChatId) {
-                // Update chat title in a separate operation
-                updateChatTitle(currentChatId, actualNameChangeValue)
-                  .then(() => {
-                    setCurrentChatTitle(actualNameChangeValue);
-                    // Update in the chat list as well
-                    setChats(prev => prev.map(chat =>
-                      chat.id === currentChatId ? { ...chat, title: actualNameChangeValue } : chat
-                    ));
-                  })
-                  .catch(error => {
-                    console.error('Error updating chat title:', error);
-                  });
-              }
-              if (actualSymbolsValue) {
-                // Process dream summary - this might require a backend API call to store it
-                // For now, we're just processing it internally
-              }
-              if (hasPaymentTrigger) {
-                setPaymentTriggered(true);
-                setShowUpsell(true);
-              }
-            } else if (data.error) {
-              // Handle errors
-              updatedMessages[aiMessageIndex] = {
-                ...updatedMessages[aiMessageIndex],
-                text: `Ошибка: ${data.error}`
-              };
-            }
+
+      const handleStreamData = (data: any) => {
+        if (data.type === 'stream' && data.content) {
+          streamTextRef.current += data.content;
+          setRenderTick(n => n + 1);
+          setMessages(prev => {
+            const idx = prev.findIndex(msg => msg.id === aiResponseId);
+            if (idx === -1) return prev;
+            const updated = [...prev];
+            updated[idx] = { ...updated[idx], text: streamTextRef.current };
+            return updated;
+          });
+        } else if (data.type === 'complete') {
+          const finalContent = data.content || streamTextRef.current;
+          isStreamingRef.current = false;
+          setIsAiTyping(false);
+
+          let cleanContent = finalContent;
+          let nameChangeValue: string | null = null;
+
+          const nameChangeMatch = cleanContent.match(/\[NAME_CHANGE\s*=\s*["']([^"']*)["']\]/);
+          if (nameChangeMatch) {
+            nameChangeValue = nameChangeMatch[1];
+            cleanContent = cleanContent.replace(nameChangeMatch[0], '').trim();
           }
-          return updatedMessages;
-        });
-      });
-      setIsAiTyping(false);
+
+          const symbolsMatch = cleanContent.match(/\[SYMBOLS\s*=\s*["']([^"']*)["']\]/);
+          if (symbolsMatch) {
+            cleanContent = cleanContent.replace(symbolsMatch[0], '').trim();
+          }
+
+          const { processedContent, hasPaymentTrigger } = processMessageContent(cleanContent);
+
+          setMessages(prev => {
+            const idx = prev.findIndex(msg => msg.id === aiResponseId);
+            if (idx === -1) return prev;
+            const updated = [...prev];
+            updated[idx] = { ...updated[idx], text: processedContent };
+            return updated;
+          });
+
+          if (nameChangeValue && currentChatId) {
+            updateChatTitle(currentChatId, nameChangeValue)
+              .then(() => {
+                setCurrentChatTitle(nameChangeValue);
+                setChats(prev => prev.map(chat =>
+                  chat.id === currentChatId ? { ...chat, title: nameChangeValue } : chat
+                ));
+              })
+              .catch(console.error);
+          }
+
+          if (hasPaymentTrigger) {
+            setPaymentTriggered(true);
+            setShowUpsell(true);
+          }
+        } else if (data.error) {
+          isStreamingRef.current = false;
+          setIsAiTyping(false);
+          setMessages(prev => {
+            const idx = prev.findIndex(msg => msg.id === aiResponseId);
+            if (idx === -1) return prev;
+            const updated = [...prev];
+            updated[idx] = { ...updated[idx], text: `Ошибка: ${data.error}` };
+            return updated;
+          });
+        }
+      };
+
+      await sendMessageStream(inputValue, handleStreamData);
+
+      if (isStreamingRef.current) {
+        isStreamingRef.current = false;
+        setIsAiTyping(false);
+      }
     } catch (error) {
       console.error('Error sending message:', error);
+      isStreamingRef.current = false;
       setIsAiTyping(false);
-      // Show error message
-      const errorMessage: Message = {
+      setMessages(prev => [...prev, {
         id: `error-${Date.now()}`,
         text: "Ошибка при отправке сообщения",
         isUser: false,
         timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      }]);
     }
   };
   

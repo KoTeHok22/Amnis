@@ -19,13 +19,10 @@ class OpenAIChatClient:
         api_key: Optional[str] = None,
         model: Optional[str] = None,
     ) -> None:
-        self.base_url = (base_url or os.getenv("OPENAI_BASE_URL", "https://flick-api.gleeze.com/v1")).rstrip("/")
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
-        self.model = model or os.getenv("OPENAI_MODEL", "qwen-3.5")
+        self.base_url = (base_url or os.getenv("OPENAI_BASE_URL", "http://freellm:11434/v1")).rstrip("/")
+        self.api_key = api_key or os.getenv("OPENAI_API_KEY", "free")
+        self.model = model or os.getenv("OPENAI_MODEL", "qwen3.6-plus")
         self.timeout = float(os.getenv("OPENAI_TIMEOUT", "300"))
-
-        if not self.api_key:
-            raise OpenAIAPIError("OPENAI_API_KEY is not configured.")
 
     def create_chat(
         self,

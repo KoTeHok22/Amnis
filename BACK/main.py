@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -6,13 +6,16 @@ from typing import Optional, List
 from datetime import datetime, timedelta
 import re
 import json
+import time
+import asyncio
+import redis
+import os
 from database import get_db
 from models import User, Chat
 from auth import get_password_hash, authenticate_user, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES, verify_token, TokenData
 from ai_service import ai_chat_service
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
-import os
 
 def normalize_phone_number(phone_number: str) -> str:
     """
@@ -41,6 +44,25 @@ def normalize_phone_number(phone_number: str) -> str:
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 app = FastAPI()
+
+
+_redis = None
+
+
+def _get_redis():
+    global _redis
+    if _redis is None:
+        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        _redis = redis.Redis.from_url(redis_url, decode_responses=True)
+    return _redis
+
+
+def _stream_key(chat_id):
+    return f"stream:{chat_id}"
+
+
+def _stream_status_key(chat_id):
+    return f"stream_status:{chat_id}"
 
 
 def get_allowed_origins() -> list[str]:
@@ -569,13 +591,13 @@ def send_message(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ):
-    """Ставит сообщение в очередь на обработку
+    """Ставит сообщение в очередь на фоновую генерацию со стримингом через Redis.
     Args:
         request: Запрос с сообщением
         token: Токен доступа
         db: Сессия базы данных
     Returns:
-        dict: Словарь с информацией о задаче
+        dict: Словарь с информацией о задаче и chat_id
     """
     token_data = verify_token(token)
     if token_data is None:
@@ -591,18 +613,24 @@ def send_message(
             detail="User not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    try:
-        from celery_app import process_message_task
-        task = process_message_task.apply_async(args=[user.phone_number, request.message])
-        return {
-            "status": "queued",
-            "task_id": task.id
-        }
-    except Exception as e:
+
+    current_chat_id = ai_chat_service._get_current_chat_id(user.phone_number)
+    if not current_chat_id:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to queue message: {str(e)}"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No active chat found for user."
         )
+
+    from celery_app import process_message_stream_task
+
+    task = process_message_stream_task.apply_async(args=[user.phone_number, request.message])
+
+    return {
+        "status": "queued",
+        "task_id": task.id,
+        "chat_id": current_chat_id,
+    }
+
 
 @app.post("/chat/send-stream")
 def send_message_stream(
@@ -610,14 +638,8 @@ def send_message_stream(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ):
-    """Отправляет сообщение в чат и возвращает ответ от ИИ в режиме потоковой передачи
-    Args:
-        request: Запрос с сообщением
-        token: Токен доступа
-        db: Сессия базы данных
-    Returns:
-        StreamingResponse: Потоковый ответ от ИИ
-    """
+    """Запускает фоновую генерацию и возвращает SSE-стрим из Redis.
+    Если для этого чата уже идёт генерация — подключается к ней."""
     token_data = verify_token(token)
     if token_data is None:
         raise HTTPException(
@@ -633,19 +655,198 @@ def send_message_stream(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    def event_generator():
-        try:
-            yield ": connected\n\n"
-            for chunk in ai_chat_service.send_message(user.phone_number, request.message):
-                yield f"data: {json.dumps(chunk)}\n\n"
-        except Exception as e:
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+    current_chat_id = ai_chat_service._get_current_chat_id(user.phone_number)
+    if not current_chat_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No active chat found for user."
+        )
+
+    r = _get_redis()
+    status_key = _stream_status_key(current_chat_id)
+    existing = r.get(status_key)
+
+    if not existing or json.loads(existing).get("status") != "generating":
+        from celery_app import process_message_stream_task
+        process_message_stream_task.apply_async(args=[user.phone_number, request.message])
+
+    async def event_generator():
+        yield "event: connected\ndata: {}\n\n"
+
+        stream_key = _stream_key(current_chat_id)
+        last_pos = 0
+        started_at = time.time()
+
+        while True:
+            try:
+                status_raw = r.get(status_key)
+                if status_raw:
+                    status_data = json.loads(status_raw)
+                else:
+                    status_data = {"status": "generating", "partial_content": "", "position": 0}
+
+                chunks = r.lrange(stream_key, last_pos, -1)
+                for chunk_raw in chunks:
+                    chunk_data = json.loads(chunk_raw)
+                    if chunk_data.get("type") == "error":
+                        yield f"data: {json.dumps({'error': chunk_data.get('error', 'Unknown error')})}\n\n"
+                    elif chunk_data.get("type") == "complete":
+                        yield f"data: {json.dumps({'type': 'complete', 'content': chunk_data.get('content', '')})}\n\n"
+                    else:
+                        yield f"data: {json.dumps({'type': 'stream', 'content': chunk_data.get('content', ''), 'phase': chunk_data.get('phase', 'answer')})}\n\n"
+                    last_pos += 1
+
+                if status_data.get("status") in ("completed", "error"):
+                    break
+
+                await asyncio.sleep(0.15)
+
+                if time.time() - started_at > 600:
+                    yield f"data: {json.dumps({'type': 'complete', 'content': status_data.get('partial_content', '')})}\n\n"
+                    break
+
+                if await _client_disconnected(db):
+                    break
+
+            except Exception as e:
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+                break
 
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream; charset=utf-8",
         headers={
-            "Cache-Control": "no-cache",
+            "Cache-Control": "no-cache, no-transform",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+async def _client_disconnected(db):
+    return False
+
+
+@app.get("/chat/stream-status")
+def get_stream_status(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    """Возвращает статус текущей генерации для чата пользователя.
+    Используется для реконнекта после перезагрузки страницы."""
+    token_data = verify_token(token)
+    if token_data is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    user = db.query(User).filter(User.phone_number == token_data.phone_number).first()
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    current_chat_id = ai_chat_service._get_current_chat_id(user.phone_number)
+    if not current_chat_id:
+        return {"is_generating": False, "partial_content": "", "position": 0}
+
+    r = _get_redis()
+    status_raw = r.get(_stream_status_key(current_chat_id))
+    if not status_raw:
+        return {"is_generating": False, "partial_content": "", "position": 0}
+
+    status_data = json.loads(status_raw)
+    return {
+        "is_generating": status_data.get("status") == "generating",
+        "partial_content": status_data.get("partial_content", ""),
+        "position": status_data.get("position", 0),
+        "chat_id": current_chat_id,
+        "status": status_data.get("status"),
+    }
+
+
+@app.get("/chat/stream/listen")
+def listen_to_stream(
+    position: int = Query(0),
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    """SSE эндпоинт для прослушивания стрима с указанной позиции.
+    Используется при реконнекте — клиент передаёт последнюю известную позицию."""
+    token_data = verify_token(token)
+    if token_data is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    user = db.query(User).filter(User.phone_number == token_data.phone_number).first()
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    current_chat_id = ai_chat_service._get_current_chat_id(user.phone_number)
+    if not current_chat_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No active chat found for user."
+        )
+
+    r = _get_redis()
+
+    async def event_generator():
+        yield "event: connected\ndata: {}\n\n"
+
+        stream_key = _stream_key(current_chat_id)
+        status_key = _stream_status_key(current_chat_id)
+        last_pos = position
+        started_at = time.time()
+
+        while True:
+            try:
+                status_raw = r.get(status_key)
+                if status_raw:
+                    status_data = json.loads(status_raw)
+                else:
+                    status_data = {"status": "generating", "partial_content": "", "position": 0}
+
+                total_len = r.llen(stream_key)
+                while last_pos < total_len:
+                    chunk_raw = r.lindex(stream_key, last_pos)
+                    if chunk_raw:
+                        chunk_data = json.loads(chunk_raw)
+                        if chunk_data.get("type") == "error":
+                            yield f"data: {json.dumps({'error': chunk_data.get('error', 'Unknown error')})}\n\n"
+                        elif chunk_data.get("type") == "complete":
+                            yield f"data: {json.dumps({'type': 'complete', 'content': chunk_data.get('content', '')})}\n\n"
+                        else:
+                            yield f"data: {json.dumps({'type': 'stream', 'content': chunk_data.get('content', ''), 'phase': chunk_data.get('phase', 'answer')})}\n\n"
+                    last_pos += 1
+
+                if status_data.get("status") in ("completed", "error"):
+                    break
+
+                await asyncio.sleep(0.15)
+
+                if time.time() - started_at > 600:
+                    yield f"data: {json.dumps({'type': 'complete', 'content': status_data.get('partial_content', '')})}\n\n"
+                    break
+
+            except Exception as e:
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+                break
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream; charset=utf-8",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
         },
