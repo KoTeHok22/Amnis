@@ -55,6 +55,9 @@ def process_message_stream(self, user_phone: str, message: str):
     status_key = _stream_status_key(current_chat_id)
     stream_key = _stream_key(current_chat_id)
 
+    r.delete(stream_key)
+    r.delete(status_key)
+
     r.set(status_key, json.dumps({
         "status": "generating",
         "partial_content": "",

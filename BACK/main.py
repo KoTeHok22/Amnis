@@ -664,16 +664,18 @@ def send_message_stream(
 
     r = _get_redis()
     status_key = _stream_status_key(current_chat_id)
+    stream_key = _stream_key(current_chat_id)
     existing = r.get(status_key)
 
     if not existing or json.loads(existing).get("status") != "generating":
+        r.delete(stream_key)
+        r.delete(status_key)
         from celery_app import process_message_stream_task
         process_message_stream_task.apply_async(args=[user.phone_number, request.message])
 
     async def event_generator():
         yield "event: connected\ndata: {}\n\n"
 
-        stream_key = _stream_key(current_chat_id)
         last_pos = 0
         started_at = time.time()
 
