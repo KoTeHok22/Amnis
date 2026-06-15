@@ -180,3 +180,14 @@ export const changePassword = async (oldPassword: string, newPassword: string) =
 export const logoutUser = () => {
   localStorage.removeItem('access_token');
 };
+
+export const createNicePayPayment = async (plan: string) => {
+  try {
+    const response = await apiClient.post('/payment/nicepay/create', {
+      plan
+    });
+    return response.data;
+  } catch (error: any) {
+    throw error.response?.data || { detail: 'Ошибка при создании платежа' };
+  }
+};

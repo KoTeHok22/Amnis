@@ -44,7 +44,7 @@ services:
       context: ./BACK
       dockerfile: Dockerfile
     ports:
-      - "18080:8000"
+      - "8000:8000"
     command: >
       sh -c "celery -A celery_app worker --loglevel=info --concurrency=2 &
              python startup_with_retry.py"
@@ -60,6 +60,9 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-free}
       - OPENAI_MODEL=${OPENAI_MODEL:-qwen3.6-plus}
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-https://amnis.jdh-team.ru,http://amnis.jdh-team.ru,http://localhost:3891,http://127.0.0.1:3891,http://localhost:8000,http://127.0.0.1:8000}
+      - NICEPAY_MERCHANT_ID=${NICEPAY_MERCHANT_ID}
+      - NICEPAY_SECRET_KEY=${NICEPAY_SECRET_KEY}
+      - FRONTEND_URL=${FRONTEND_URL:-https://amnis.jdh-team.ru}
     depends_on:
       db:
         condition: service_healthy

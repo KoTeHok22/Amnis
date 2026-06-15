@@ -11,11 +11,12 @@ import asyncio
 import redis
 import os
 from database import get_db
-from models import User, Chat
+from models import User, Chat, Payment, TelegramUser
 from auth import get_password_hash, authenticate_user, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES, verify_token, TokenData
 from ai_service import ai_chat_service
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
+from nicepay import create_nicepay_payment, verify_webhook_hash, NICEPAY_SECRET_KEY, NICEPAY_MERCHANT_ID
 
 def normalize_phone_number(phone_number: str) -> str:
     """
@@ -545,6 +546,175 @@ def get_subscription(token: str = Depends(oauth2_scheme), db: Session = Depends(
         "expiresAt": user.subscription_expiry.isoformat() if user.subscription_expiry else None,
         "remainingDays": remaining_days
     }
+
+
+class CreateNicePayPaymentRequest(BaseModel):
+    plan: str
+
+
+@app.post("/payment/nicepay/create")
+async def create_nicepay_endpoint(
+    request: CreateNicePayPaymentRequest,
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    token_data = verify_token(token)
+    if token_data is None:
+        raise credentials_exception
+
+    user = db.query(User).filter(User.phone_number == token_data.phone_number).first()
+    if user is None:
+        raise credentials_exception
+
+    # Map plan to analyses count, price (in RUB kopecks), and validity days
+    plan_map = {
+        "plan-1": {"analyses": 1, "price": 19900, "validity_days": 30},
+        "plan-5": {"analyses": 5, "price": 79900, "validity_days": 90},
+        "plan-10": {"analyses": 10, "price": 139900, "validity_days": 180},
+        "plan-15": {"analyses": 15, "price": 189900, "validity_days": 365},
+        "single": {"analyses": 1, "price": 19900, "validity_days": 30},
+        "starter": {"analyses": 5, "price": 79900, "validity_days": 90},
+        "standard": {"analyses": 10, "price": 139900, "validity_days": 180},
+        "premium": {"analyses": 15, "price": 189900, "validity_days": 365},
+    }
+
+    plan_info = plan_map.get(request.plan)
+    if not plan_info:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid plan selected"
+        )
+
+    # Generate unique order ID
+    import uuid
+    order_id = f"amnis_{user.id}_{uuid.uuid4().hex[:12]}"
+
+    # Determine success/fail URLs
+    frontend_url = os.getenv("FRONTEND_URL", "https://amnis.jdh-team.ru")
+    success_url = f"{frontend_url}/?payment=success"
+    fail_url = f"{frontend_url}/?payment=fail"
+
+    try:
+        nicepay_data = await create_nicepay_payment(
+            order_id=order_id,
+            customer=user.phone_number,
+            amount=plan_info["price"],
+            currency="RUB",
+            description=f"Amnis: {plan_info['analyses']} analyses",
+            success_url=success_url,
+            fail_url=fail_url,
+        )
+
+        # Save payment record
+        payment = Payment(
+            order_id=order_id,
+            nicepay_payment_id=nicepay_data.get("payment_id", ""),
+            user_id=user.id,
+            amount=plan_info["price"],
+            currency="RUB",
+            plan=request.plan,
+            analyses_count=plan_info["analyses"],
+            validity_days=plan_info["validity_days"],
+            status="pending",
+        )
+        db.add(payment)
+        db.commit()
+
+        return {
+            "status": "success",
+            "payment_id": nicepay_data.get("payment_id"),
+            "link": nicepay_data.get("link"),
+            "amount": plan_info["price"],
+            "currency": "RUB",
+            "order_id": order_id,
+        }
+    except Exception as e:
+        print(f"NicePay payment creation error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create payment: {str(e)}"
+        )
+
+
+@app.get("/payment/nicepay/callback")
+def nicepay_callback(
+    result: str,
+    payment_id: str,
+    merchant_id: str,
+    order_id: str,
+    amount: str,
+    amount_currency: str,
+    profit: str,
+    profit_currency: str,
+    method: str,
+    hash: str,
+    db: Session = Depends(get_db)
+):
+    # Collect all params for hash verification
+    all_params = {
+        "result": result,
+        "payment_id": payment_id,
+        "merchant_id": merchant_id,
+        "order_id": order_id,
+        "amount": amount,
+        "amount_currency": amount_currency,
+        "profit": profit,
+        "profit_currency": profit_currency,
+        "method": method,
+        "hash": hash,
+    }
+
+    # Verify hash
+    if not verify_webhook_hash(all_params, NICEPAY_SECRET_KEY):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid hash signature"
+        )
+
+    # Verify merchant_id matches
+    if merchant_id != NICEPAY_MERCHANT_ID:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid merchant ID"
+        )
+
+    # Find the payment record
+    payment = db.query(Payment).filter(Payment.order_id == order_id).first()
+    if not payment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Payment not found"
+        )
+
+    # Update payment record (prevent double-processing)
+    if payment.status == "success" or payment.status == "error":
+        # Already processed, just return OK
+        return {"status": "ok"}
+
+    if result == "success":
+        payment.status = "success"
+        payment.nicepay_payment_id = payment_id
+
+        # Update user's subscription
+        user = db.query(User).filter(User.id == payment.user_id).first()
+        if user:
+            user.available_analyses += payment.analyses_count
+            user.subscription_expiry = datetime.utcnow() + timedelta(days=payment.validity_days)
+            user.updated_at = datetime.utcnow()
+    else:
+        payment.status = "error"
+
+    payment.updated_at = datetime.utcnow()
+    db.commit()
+
+    return {"status": "ok"}
+
+
 @app.post("/chat/create")
 def create_chat(
     request: CreateChatRequest,
@@ -1256,7 +1426,6 @@ def register_telegram_user(
             "name": new_user.name
         }
     }
-from models import TelegramUser
 class TelegramAuthRequest(BaseModel):
     """Модель для аутентификации через Telegram"""
     telegram_id: int

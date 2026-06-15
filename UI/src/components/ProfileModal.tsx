@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { PrimaryCTA } from './PrimaryCTA';
 import { SparkleIcon } from './SparkleIcon';
 import { X, User, Phone, Calendar, Sparkles, Lock, Edit2, Check } from 'lucide-react';
-import { updateUserProfile as updateProfileAPI, getUserSubscription, changePassword, fetchUserProfileData, purchasePlan } from '../services/api';
+import { updateUserProfile as updateProfileAPI, getUserSubscription, changePassword, fetchUserProfileData, purchasePlan, createNicePayPayment } from '../services/api';
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -183,41 +183,24 @@ export function ProfileModal({ isOpen, onClose, onPurchase }: ProfileModalProps)
   const handleConfirmPayment = async () => {
     setLoading(true);
     try {
-      // Call the backend to process the payment and update user's analyses count
-      const result = await purchasePlan(selectedPlan);
+      // Create payment via NicePay
+      const result = await createNicePayPayment(selectedPlan);
 
-      // Fetch updated user profile to get the new analyses count
-      const updatedProfileData = await fetchUserProfileData();
+      if (result.link) {
+        // Open NicePay payment page in a new tab
+        window.open(result.link, '_blank');
 
-      // Update the local profile state with the new data
-      setProfile({
-        name: updatedProfileData.name || '',
-        phone: updatedProfileData.phone_number || '',
-        birthDate: updatedProfileData.birth_date || '',
-        availableAnalyses: updatedProfileData.available_analyses || 0,
-      });
-
-      // Update the auth context with new data
-      if (user) {
-        updateUserProfile({
-          ...user,
-          available_analyses: updatedProfileData.available_analyses,
-          name: updatedProfileData.name,
-          phone_number: updatedProfileData.phone_number,
-          birth_date: updatedProfileData.birth_date,
-        });
+        // Show info message - user's subscription will be updated via webhook
+        alert('Страница оплаты открыта в новой вкладке. После завершения оплаты ваш баланс будет пополнен автоматически.');
+      } else {
+        console.error('No payment link received');
       }
-
-      // Notify parent component of successful purchase
-      onPurchase(selectedPlan);
-
-      // Close the payment confirmation modal
-      setShowPaymentConfirmation(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Payment error:', error);
-      // Optionally show an error message to the user
+      alert(error?.detail || 'Ошибка при создании платежа');
     } finally {
       setLoading(false);
+      setShowPaymentConfirmation(false);
     }
   };
 

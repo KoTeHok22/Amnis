@@ -10,9 +10,24 @@ const ChatWindow = lazy(() => import('./components/ChatWindow').then(module => (
 type View = 'landing' | 'chat' | 'profile';
 
 function AppContent() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, fetchUserProfile } = useAuth();
   const [currentView, setCurrentView] = useState<View>('landing');
   const [showAuth, setShowAuth] = useState(false);
+
+  useEffect(() => {
+    // Handle NicePay payment return
+    const params = new URLSearchParams(window.location.search);
+    const paymentStatus = params.get('payment');
+
+    if (paymentStatus === 'success' && isAuthenticated) {
+      // Refresh user profile to get updated analyses count
+      fetchUserProfile();
+      // Clean URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (paymentStatus === 'fail') {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
     // Update the view based on authentication status

@@ -122,7 +122,7 @@ export function PricingSection({ onSelectPlan }: PricingSectionProps) {
           className="text-center mt-8 sm:mt-10"
         >
           <p className="text-[#B8B5D1] text-sm font-accent" style={{ fontStyle: 'italic' }}>
-            Все платежи защищены и обрабатываются через Robokassa
+            Все платежи защищены и обрабатываются через NicePay
           </p>
         </motion.div>
       </div>
