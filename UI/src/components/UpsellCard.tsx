@@ -1,17 +1,22 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { PrimaryCTA } from './PrimaryCTA';
-import { Sparkles, Check } from 'lucide-react';
+import { Sparkles, Check, Zap } from 'lucide-react';
 import { pricingPlans, BASE_PRICE_PER_ANALYSIS } from '../data/pricingPlans';
 
 interface UpsellCardProps {
   price: string;
   onPurchase: () => void;
+  // Если кредиты есть — показываем кнопку «Потратить 1 кредит» основной,
+  // а тарифы — как вторичную опцию «Пополнить баланс».
+  availableAnalyses?: number;
+  onUseCredit?: () => void;
 }
 
-export function UpsellCard({ price, onPurchase }: UpsellCardProps) {
+export function UpsellCard({ price, onPurchase, availableAnalyses = 0, onUseCredit }: UpsellCardProps) {
   const [selectedPlan, setSelectedPlan] = useState<string>('plan-5');
-  
+  const hasCredits = availableAnalyses > 0;
+
   const benefits = [
     'Детальный разбор всех символов',
     'Психологический анализ',
@@ -27,34 +32,48 @@ export function UpsellCard({ price, onPurchase }: UpsellCardProps) {
       transition={{ duration: 0.4 }}
       className="my-8 rounded-[28px] p-6 sm:p-8 relative overflow-hidden"
       style={{
-        background: 'linear-gradient(135deg, rgba(244, 224, 167, 0.12), rgba(169, 152, 255, 0.08))',
-        border: '2px solid rgba(244, 224, 167, 0.4)',
+        background: hasCredits
+          ? 'linear-gradient(135deg, rgba(169, 152, 255, 0.14), rgba(244, 224, 167, 0.08))'
+          : 'linear-gradient(135deg, rgba(244, 224, 167, 0.12), rgba(169, 152, 255, 0.08))',
+        border: hasCredits
+          ? '2px solid rgba(169, 152, 255, 0.5)'
+          : '2px solid rgba(244, 224, 167, 0.4)',
         backdropFilter: 'blur(20px)',
-        boxShadow: '0 8px 32px rgba(244, 224, 167, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+        boxShadow: hasCredits
+          ? '0 8px 32px rgba(169, 152, 255, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+          : '0 8px 32px rgba(244, 224, 167, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
       }}
     >
       {/* Glow effect */}
       <div className="absolute inset-0 opacity-40 pointer-events-none">
-        <div className="absolute top-0 right-0 w-48 h-48 bg-[#F4E0A7] rounded-full filter blur-[80px]" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-[#A998FF] rounded-full filter blur-[80px]" />
+        <div className={`absolute top-0 right-0 w-48 h-48 rounded-full filter blur-[80px] ${hasCredits ? 'bg-[#A998FF]' : 'bg-[#F4E0A7]'}`} />
+        <div className={`absolute bottom-0 left-0 w-48 h-48 rounded-full filter blur-[80px] ${hasCredits ? 'bg-[#F4E0A7]' : 'bg-[#A998FF]'}`} />
       </div>
 
       <div className="relative">
+        {/* ── Заголовок ── */}
         <div className="flex items-start gap-3 sm:gap-4 mb-6">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-[rgba(244,224,167,0.3)] to-[rgba(169,152,255,0.2)] shadow-[0_0_24px_rgba(244,224,167,0.4)]">
+          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${
+            hasCredits
+              ? 'bg-gradient-to-br from-[rgba(169,152,255,0.3)] to-[rgba(244,224,167,0.2)] shadow-[0_0_24px_rgba(169,152,255,0.4)]'
+              : 'bg-gradient-to-br from-[rgba(244,224,167,0.3)] to-[rgba(169,152,255,0.2)] shadow-[0_0_24px_rgba(244,224,167,0.4)]'
+          }`}>
             <Sparkles className="w-6 h-6 text-[#F4E0A7]" />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-[#F4E0A7] mb-2">
-              Полный Подсознательный Анализ
+            <h3 className="text-[#F4E0A7] mb-2 font-tech text-lg">
+              {hasCredits ? 'Глубокий анализ доступен' : 'Полный Подсознательный Анализ'}
             </h3>
             <p className="text-[#E8E6F5] leading-relaxed opacity-90 text-sm sm:text-base">
-              Углубленное толкование вашего сна с раскрытием символов 
-              и личных смыслов. Amnis проведет детальный анализ всех элементов.
+              {hasCredits
+                ? `У вас ${availableAnalyses} ${availableAnalyses === 1 ? 'кредит' : availableAnalyses < 5 ? 'кредита' : 'кредитов'} глубокого анализа. Используйте один прямо сейчас — Amnis проведёт полный психологический разбор вашего сна.`
+                : 'Углубленное толкование вашего сна с раскрытием символов и личных смыслов. Amnis проведет детальный анализ всех элементов.'
+              }
             </p>
           </div>
         </div>
 
+        {/* ── Преимущества ── */}
         <div className="space-y-2.5 mb-6">
           {benefits.map((benefit, index) => (
             <div key={index} className="flex items-center gap-2.5">
@@ -66,9 +85,48 @@ export function UpsellCard({ price, onPurchase }: UpsellCardProps) {
           ))}
         </div>
 
-        {/* Pricing Plans */}
-        <div className="mb-6">
-          <div className="text-[#B8B5D1] text-sm mb-3">Выберите тариф:</div>
+        {/* ── Основная кнопка: кредит или оплата ── */}
+        {hasCredits ? (
+          <div className="mb-6">
+            <motion.button
+              onClick={onUseCredit}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.97 }}
+              className="w-full px-8 py-4 rounded-2xl bg-gradient-to-r from-[#A998FF] to-[#F4E0A7] text-[#0D0B24] font-semibold text-lg shadow-[0_4px_24px_rgba(169,152,255,0.4)] hover:shadow-[0_6px_32px_rgba(169,152,255,0.6)] transition-shadow flex items-center justify-center gap-3"
+            >
+              <Zap className="w-5 h-5" />
+              <span>Потратить 1 кредит — начать глубокий анализ</span>
+            </motion.button>
+            <p className="text-[#B8B5D1] text-xs text-center mt-2">
+              Останется {availableAnalyses - 1} {availableAnalyses - 1 === 1 ? 'кредит' : availableAnalyses - 1 < 5 ? 'кредита' : 'кредитов'}
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 mb-6">
+            <div className="min-h-[72px] flex flex-col justify-center">
+              <div className="text-[#B8B5D1] text-sm mb-1">К оплате</div>
+              <div className="text-[#F4E0A7] text-2xl sm:text-3xl">{currentPlan.price}₽</div>
+              <div className="min-h-[20px]">
+                {currentPlan.analyses > 1 && (
+                  <div className="text-[#A998FF] text-xs sm:text-sm mt-1">
+                    Экономия {((currentPlan.analyses * BASE_PRICE_PER_ANALYSIS) - currentPlan.price)}₽
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex-shrink-0">
+              <PrimaryCTA onClick={onPurchase} icon={<Sparkles className="w-4 h-4" />}>
+                Заказать анализ
+              </PrimaryCTA>
+            </div>
+          </div>
+        )}
+
+        {/* ── Тарифы (всегда видны) ── */}
+        <div className="border-t border-[rgba(169,152,255,0.2)] pt-5">
+          <div className="text-[#B8B5D1] text-sm mb-3">
+            {hasCredits ? 'Пополнить баланс:' : 'Выберите тариф:'}
+          </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
             {pricingPlans.map((plan) => (
               <motion.button
@@ -106,25 +164,21 @@ export function UpsellCard({ price, onPurchase }: UpsellCardProps) {
               </motion.button>
             ))}
           </div>
-        </div>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-          <div className="min-h-[72px] flex flex-col justify-center">
-            <div className="text-[#B8B5D1] text-sm mb-1">К оплате</div>
-            <div className="text-[#F4E0A7] text-2xl sm:text-3xl">{currentPlan.price}₽</div>
-            <div className="min-h-[20px]">
-              {currentPlan.analyses > 1 && (
-                <div className="text-[#A998FF] text-xs sm:text-sm mt-1">
-                  Экономия {((currentPlan.analyses * BASE_PRICE_PER_ANALYSIS) - currentPlan.price)}₽
-                </div>
-              )}
+          {/* Кнопка покупки для тарифов (только когда кредитов нет ИЛИ хотят пополнить) */}
+          {!hasCredits ? null : (
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 mt-5">
+              <div className="min-h-[48px] flex flex-col justify-center">
+                <div className="text-[#B8B5D1] text-sm">К оплате</div>
+                <div className="text-[#F4E0A7] text-xl">{currentPlan.price}₽</div>
+              </div>
+              <div className="flex-shrink-0">
+                <PrimaryCTA onClick={onPurchase} icon={<Sparkles className="w-4 h-4" />}>
+                  Пополнить
+                </PrimaryCTA>
+              </div>
             </div>
-          </div>
-          <div className="flex-shrink-0">
-            <PrimaryCTA onClick={onPurchase} icon={<Sparkles className="w-4 h-4" />}>
-              Заказать анализ
-            </PrimaryCTA>
-          </div>
+          )}
         </div>
       </div>
     </motion.div>
