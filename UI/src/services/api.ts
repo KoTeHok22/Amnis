@@ -191,3 +191,15 @@ export const createNicePayPayment = async (plan: string) => {
     throw error.response?.data || { detail: 'Ошибка при создании платежа' };
   }
 };
+
+// Серверная озвучка текста (edge-tts). Возвращает MP3 как Blob.
+// Работает в любом браузере и для любого языка, т.к. аудио синтезируется
+// на сервере и не зависит от установленных в ОС голосов.
+export const fetchTtsAudio = async (text: string, lang?: string): Promise<Blob> => {
+  const response = await apiClient.post(
+    '/tts',
+    { text, lang },
+    { responseType: 'blob' }
+  );
+  return response.data as Blob;
+};

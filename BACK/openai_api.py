@@ -19,9 +19,9 @@ class OpenAIChatClient:
         api_key: Optional[str] = None,
         model: Optional[str] = None,
     ) -> None:
-        self.base_url = (base_url or os.getenv("OPENAI_BASE_URL", "http://freellm:11434/v1")).rstrip("/")
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY", "free")
-        self.model = model or os.getenv("OPENAI_MODEL", "qwen3.6-plus")
+        self.base_url = (base_url or os.getenv("OPENAI_BASE_URL", "https://api.deepseek.com")).rstrip("/")
+        self.api_key = api_key or os.getenv("OPENAI_API_KEY", "")
+        self.model = model or os.getenv("OPENAI_MODEL", "deepseek-v4-flash")
         self.timeout = float(os.getenv("OPENAI_TIMEOUT", "300"))
 
     def create_chat(

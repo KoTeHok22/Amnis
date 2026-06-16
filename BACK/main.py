@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, List
@@ -1464,6 +1464,152 @@ def telegram_auth(request: TelegramAuthRequest, db: Session = Depends(get_db)):
     )
     telegram_user.access_token = access_token
     db.commit()
+# ---------------------------------------------------------------------------
+# Text-to-Speech (TTS)
+# ---------------------------------------------------------------------------
+# Серверная озвучка через edge-tts. В отличие от браузерного SpeechSynthesis,
+# она не зависит от голосов, установленных в ОС пользователя, поэтому работает
+# в ЛЮБОМ браузере и поддерживает любой язык (~100 локалей, включая русский).
+# Клиент использует это как основной путь, а Web Speech API — как фолбэк.
+
+class TTSRequest(BaseModel):
+    """Модель запроса озвучивания текста"""
+    text: str
+    lang: Optional[str] = None  # необязательная подсказка языка (ISO 639-1)
+
+
+# Язык (ISO 639-1) -> голос edge-tts (ShortName)
+_TTS_VOICES = {
+    "ru": "ru-RU-SvetlanaNeural",
+    "uk": "uk-UA-PolinaNeural",
+    "en": "en-US-AriaNeural",
+    "es": "es-ES-ElviraNeural",
+    "fr": "fr-FR-DeniseNeural",
+    "de": "de-DE-KatjaNeural",
+    "it": "it-IT-ElsaNeural",
+    "pt": "pt-BR-FranciscaNeural",
+    "pl": "pl-PL-ZofiaNeural",
+    "nl": "nl-NL-ColetteNeural",
+    "tr": "tr-TR-EmelNeural",
+    "ar": "ar-SA-ZariyahNeural",
+    "hi": "hi-IN-SwaraNeural",
+    "zh": "zh-CN-XiaoxiaoNeural",
+    "ja": "ja-JP-NanamiNeural",
+    "ko": "ko-KR-SunHiNeural",
+    "kk": "kk-KZ-AigulNeural",
+    "he": "he-IL-HilaNeural",
+    "el": "el-GR-AthinaNeural",
+    "th": "th-TH-PremwadeeNeural",
+    "vi": "vi-VN-HoaiMyNeural",
+    "id": "id-ID-GadisNeural",
+    "cs": "cs-CZ-VlastaNeural",
+    "ro": "ro-RO-AlinaNeural",
+    "hu": "hu-HU-NoemiNeural",
+    "sv": "sv-SE-SofieNeural",
+    "fi": "fi-FI-NooraNeural",
+    "az": "az-AZ-BanuNeural",
+}
+
+_DEFAULT_TTS_VOICE = "en-US-AriaNeural"
+
+
+def _detect_tts_lang(text: str) -> str:
+    """Грубое определение языка по преобладающей письменности — для подбора голоса."""
+    counts: dict = {}
+    for ch in text:
+        o = ord(ch)
+        if 0x0400 <= o <= 0x04FF:          # Cyrillic
+            counts["cyr"] = counts.get("cyr", 0) + 1
+        elif 0x3040 <= o <= 0x30FF:        # Hiragana / Katakana
+            counts["kana"] = counts.get("kana", 0) + 1
+        elif 0x4E00 <= o <= 0x9FFF:        # CJK Unified (китайский / кандзи)
+            counts["han"] = counts.get("han", 0) + 1
+        elif 0xAC00 <= o <= 0xD7A3:        # Hangul
+            counts["hangul"] = counts.get("hangul", 0) + 1
+        elif 0x0600 <= o <= 0x06FF:        # Arabic
+            counts["arab"] = counts.get("arab", 0) + 1
+        elif 0x0590 <= o <= 0x05FF:        # Hebrew
+            counts["hebrew"] = counts.get("hebrew", 0) + 1
+        elif 0x0900 <= o <= 0x097F:        # Devanagari
+            counts["deva"] = counts.get("deva", 0) + 1
+        elif 0x0370 <= o <= 0x03FF:        # Greek
+            counts["greek"] = counts.get("greek", 0) + 1
+        elif 0x0E00 <= o <= 0x0E7F:        # Thai
+            counts["thai"] = counts.get("thai", 0) + 1
+        elif 0x0041 <= o <= 0x024F:        # Latin
+            counts["lat"] = counts.get("lat", 0) + 1
+
+    if not counts:
+        return "en"
+
+    dominant = max(counts, key=counts.get)
+    mapping = {
+        "kana": "ja", "han": "zh", "hangul": "ko", "arab": "ar",
+        "hebrew": "he", "deva": "hi", "greek": "el", "thai": "th",
+    }
+    if dominant in mapping:
+        return mapping[dominant]
+    if dominant == "cyr":
+        # украинский — по специфичным буквам
+        if any(c in text for c in "іїєґІЇЄҐ"):
+            return "uk"
+        return "ru"
+    return "en"
+
+
+@app.post("/tts")
+async def text_to_speech(request: TTSRequest, token: str = Depends(oauth2_scheme)):
+    """Озвучивает переданный текст на сервере (edge-tts) и возвращает MP3.
+    Работает в любом браузере независимо от наличия системных голосов.
+    Args:
+        request: Текст и (опционально) подсказка языка
+        token: Токен доступа
+    Returns:
+        Response: Аудио в формате audio/mpeg
+    """
+    if verify_token(token) is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    text = (request.text or "").strip()
+    if not text:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty text")
+    # Ограничиваем длину, чтобы не нагружать сервис озвучки
+    text = text[:5000]
+
+    lang = (request.lang or "").lower().split("-")[0] or _detect_tts_lang(text)
+    voice = _TTS_VOICES.get(lang, _DEFAULT_TTS_VOICE)
+
+    try:
+        import edge_tts
+
+        communicate = edge_tts.Communicate(text, voice)
+        audio = bytearray()
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                audio.extend(chunk["data"])
+
+        if not audio:
+            raise RuntimeError("No audio produced")
+
+        return Response(
+            content=bytes(audio),
+            media_type="audio/mpeg",
+            headers={"Cache-Control": "no-store"},
+        )
+    except Exception as e:
+        # Любая ошибка (нет пакета, нет сети до сервиса и т.п.) — клиент сам
+        # переключится на браузерную озвучку.
+        print(f"TTS error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="TTS service unavailable",
+        )
+
+
 @app.get("/health")
 def health_check():
     """Health check endpoint for Docker container health status

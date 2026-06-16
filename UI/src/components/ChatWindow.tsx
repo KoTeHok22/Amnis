@@ -126,6 +126,8 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
   const streamTextRef = useRef<string>('');
   const [, setRenderTick] = useState(0);
   const isStreamingRef = useRef<boolean>(false);
+  // Защита от повторного авто-создания чата (на случай повторного вызова загрузки).
+  const autoCreatingRef = useRef<boolean>(false);
   
   
   const scrollToBottom = () => {
@@ -281,65 +283,66 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
         timestamp: new Date(apiChat.updated_at || apiChat.created_at),
       }));
       setChats(loadedChats);
-      // If there are existing chats, load the most recent one
-      if (loadedChats.length > 0) {
-        const mostRecentChat = loadedChats[0];
-        setCurrentChatId(mostRecentChat.id);
-        setCurrentChatTitle(mostRecentChat.title);
-        // Load messages for the most recent chat
-        try {
-          const switchResult = await switchChat(mostRecentChat.id);
-          setCurrentChatId(mostRecentChat.id);
-          setCurrentChatTitle(mostRecentChat.title);
-          // Load messages for the selected chat
-          const chatMessages = switchResult.messages || [];
-          // Filter out system messages and convert to UI format
-          let hasPaymentTrigger = false;
-          const uiMessages = chatMessages
-            .filter((msg: any) => msg.role !== 'system')  // Don't show system messages to users
-            .map((msg: any, index: number) => {
-              // Process the message content to remove triggers
-              const { processedContent: content, hasPaymentTrigger: messageHasPaymentTrigger, nameChangeValue, symbolsValue } = processMessageContent(msg.content);
-              if (messageHasPaymentTrigger) {
-                hasPaymentTrigger = true;
-              }
-              // Handle name change and symbols triggers if needed when loading messages
-              if (nameChangeValue && currentChatId) {
-                // Update chat title in a separate operation if this is the current chat
-                updateChatTitle(currentChatId, nameChangeValue)
-                  .then(() => {
-                    setCurrentChatTitle(nameChangeValue);
-                    // Update in the chat list as well
-                    setChats(prev => prev.map(chat =>
-                      chat.id === currentChatId ? { ...chat, title: nameChangeValue } : chat
-                    ));
-                  })
-                  .catch(error => {
-                    logger.error('Error updating chat title:', error);
-                  });
-              }
-              return {
-                id: `${msg.timestamp || Date.now()}-${index}`,
-                text: content,
-                isUser: msg.role === 'user',
-                timestamp: new Date(msg.timestamp || Date.now())
-              };
-            });
-          setMessages(uiMessages);
-          // Update payment trigger state if any message contained a payment trigger
-          if (hasPaymentTrigger) {
-            setPaymentTriggered(true);
-            setShowUpsell(true);
-          }
-        } catch (error) {
-          logger.error('Error loading most recent chat messages:', error);
-          setMessages([]); // Clear messages if loading fails
+      // Список чатов получен — сразу снимаем спиннер списка. Сообщения последнего
+      // чата подгружаем отдельно ниже: их задержка или ошибка больше не держит
+      // список в состоянии «загрузка» бесконечно (из-за чего новые чаты не были видны).
+      setIsLoadingChats(false);
+
+      if (loadedChats.length === 0) {
+        // Чатов нет вообще — создаём автоматически, чтобы пользователь не оставался без чата.
+        if (!autoCreatingRef.current) {
+          autoCreatingRef.current = true;
+          await handleCreateNewChat();
         }
-      } else {
-        // If no existing chats, don't create one automatically, let the user do it
-        setCurrentChatId(null);
-        setCurrentChatTitle('Новый чат');
-        setMessages([]);
+        return;
+      }
+
+      // Есть чаты — открываем самый свежий и подгружаем его сообщения.
+      const mostRecentChat = loadedChats[0];
+      setCurrentChatId(mostRecentChat.id);
+      setCurrentChatTitle(mostRecentChat.title);
+      try {
+        const switchResult = await switchChat(mostRecentChat.id);
+        const chatMessages = switchResult.messages || [];
+        // Filter out system messages and convert to UI format
+        let hasPaymentTrigger = false;
+        const uiMessages = chatMessages
+          .filter((msg: any) => msg.role !== 'system')  // Don't show system messages to users
+          .map((msg: any, index: number) => {
+            // Process the message content to remove triggers
+            const { processedContent: content, hasPaymentTrigger: messageHasPaymentTrigger, nameChangeValue } = processMessageContent(msg.content);
+            if (messageHasPaymentTrigger) {
+              hasPaymentTrigger = true;
+            }
+            // Handle name change trigger when loading messages
+            if (nameChangeValue) {
+              updateChatTitle(mostRecentChat.id, nameChangeValue)
+                .then(() => {
+                  setCurrentChatTitle(nameChangeValue);
+                  setChats(prev => prev.map(chat =>
+                    chat.id === mostRecentChat.id ? { ...chat, title: nameChangeValue } : chat
+                  ));
+                })
+                .catch(error => {
+                  logger.error('Error updating chat title:', error);
+                });
+            }
+            return {
+              id: `${msg.timestamp || Date.now()}-${index}`,
+              text: content,
+              isUser: msg.role === 'user',
+              timestamp: new Date(msg.timestamp || Date.now())
+            };
+          });
+        setMessages(uiMessages);
+        // Update payment trigger state if any message contained a payment trigger
+        if (hasPaymentTrigger) {
+          setPaymentTriggered(true);
+          setShowUpsell(true);
+        }
+      } catch (error) {
+        logger.error('Error loading most recent chat messages:', error);
+        setMessages([]); // Clear messages if loading fails
       }
     } catch (error) {
       logger.error('Error loading user chats:', error);
@@ -348,7 +351,6 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
       setCurrentChatId(null);
       setCurrentChatTitle('Новый чат');
       setMessages([]);
-    } finally {
       setIsLoadingChats(false);
     }
   };
