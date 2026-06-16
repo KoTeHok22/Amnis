@@ -203,3 +203,10 @@ export const fetchTtsAudio = async (text: string, lang?: string): Promise<Blob> 
   );
   return response.data as Blob;
 };
+
+// Списание одного кредита глубокого анализа.
+// Вызывается при обнаружении TRIGGER_USE_ANALYSIS_CREDIT в ответе AI.
+export const useAnalysisCredit = async (): Promise<{ available_analyses: number }> => {
+  const response = await apiClient.post('/use-analysis-credit');
+  return response.data;
+};

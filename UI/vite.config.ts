@@ -65,6 +65,7 @@
         '/profile': 'http://127.0.0.1:18080',
         '/change-password': 'http://127.0.0.1:18080',
         '/payment': 'http://127.0.0.1:18080',
+        '/use-analysis-credit': 'http://127.0.0.1:18080',
         '/subscription': 'http://127.0.0.1:18080',
         '/chat': 'http://127.0.0.1:18080',
         '/chats': 'http://127.0.0.1:18080',

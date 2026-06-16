@@ -1464,6 +1464,45 @@ def telegram_auth(request: TelegramAuthRequest, db: Session = Depends(get_db)):
     )
     telegram_user.access_token = access_token
     db.commit()
+@app.post("/use-analysis-credit")
+def use_analysis_credit(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    """Списывает один кредит глубокого анализа у пользователя.
+    Вызывается фронтендом при обнаружении TRIGGER_USE_ANALYSIS_CREDIT в ответе AI.
+    Args:
+        token: Токен доступа
+        db: Сессия базы данных
+    Returns:
+        dict: Обновлённый баланс кредитов
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    token_data = verify_token(token)
+    if token_data is None:
+        raise credentials_exception
+    user = db.query(User).filter(User.phone_number == token_data.phone_number).first()
+    if user is None:
+        raise credentials_exception
+    if (user.available_analyses or 0) < 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Нет доступных кредитов для глубокого анализа",
+        )
+    user.available_analyses -= 1
+    user.updated_at = datetime.utcnow()
+    db.commit()
+    return {
+        "status": "success",
+        "available_analyses": user.available_analyses,
+        "message": "Кредит глубокого анализа использован",
+    }
+
+
 # ---------------------------------------------------------------------------
 # Text-to-Speech (TTS)
 # ---------------------------------------------------------------------------

@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner@2.0.3';
 import { useAuth } from '../context/AuthContext';
 import { createChat, sendMessage, sendMessageStream, getUserChats, switchChat, deleteChat, getChatMessages, updateChatTitle, getStreamStatus, listenToStream } from '../services/chatApi';
+import { useAnalysisCredit } from '../services/api';
 import { ProfileModal } from './ProfileModal';
 import PaymentWarningModal from './PaymentWarningModal';
 import { usePayment } from '../context/PaymentContext';
@@ -39,6 +40,67 @@ interface Chat {
 interface ChatWindowProps {
   onProfileOpen: () => void;
   onPurchase: (planId: string) => void;
+}
+
+// Карточка запуска глубокого анализа при наличии кредитов.
+// Показывается ВМЕСТО UpsellCard, когда available_analyses > 0.
+function DeepAnalysisStartCard({ onStart }: { onStart: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.4 }}
+      className="my-8 rounded-[28px] p-6 sm:p-8 relative overflow-hidden"
+      style={{
+        background: 'linear-gradient(135deg, rgba(169, 152, 255, 0.12), rgba(244, 224, 167, 0.08))',
+        border: '2px solid rgba(169, 152, 255, 0.5)',
+        backdropFilter: 'blur(20px)',
+        boxShadow: '0 8px 32px rgba(169, 152, 255, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+      }}
+    >
+      {/* Glow effect */}
+      <div className="absolute inset-0 opacity-40 pointer-events-none">
+        <div className="absolute top-0 right-0 w-48 h-48 bg-[#A998FF] rounded-full filter blur-[80px]" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-[#F4E0A7] rounded-full filter blur-[80px]" />
+      </div>
+
+      <div className="relative">
+        <div className="flex items-start gap-3 sm:gap-4 mb-6">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-[rgba(169,152,255,0.3)] to-[rgba(244,224,167,0.2)] shadow-[0_0_24px_rgba(169,152,255,0.4)]">
+            <Sparkles className="w-6 h-6 text-[#F4E0A7]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-[#F4E0A7] mb-2 font-tech text-lg">
+              Глубокий анализ доступен
+            </h3>
+            <p className="text-[#E8E6F5] leading-relaxed opacity-90 text-sm sm:text-base">
+              У вас есть кредиты глубокого анализа. Нажмите «Начать» — Amnis проведёт
+              полный психологический разбор вашего сна с раскрытием всех символов,
+              архетипов и скрытых смыслов.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+          <div className="min-h-[72px] flex flex-col justify-center">
+            <div className="text-[#B8B5D1] text-sm mb-1">Будет использован</div>
+            <div className="text-[#F4E0A7] text-2xl sm:text-3xl">1 кредит</div>
+          </div>
+          <div className="flex-shrink-0">
+            <motion.button
+              onClick={onStart}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-[#A998FF] to-[#F4E0A7] text-[#0D0B24] font-semibold shadow-[0_4px_24px_rgba(169,152,255,0.4)] hover:shadow-[0_6px_32px_rgba(169,152,255,0.6)] transition-shadow flex items-center gap-2"
+            >
+              <Sparkles className="w-4 h-4" />
+              Начать
+            </motion.button>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
 }
 
 export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
@@ -306,13 +368,17 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
         const chatMessages = switchResult.messages || [];
         // Filter out system messages and convert to UI format
         let hasPaymentTrigger = false;
+        let hasCreditTrigger = false;
         const uiMessages = chatMessages
           .filter((msg: any) => msg.role !== 'system')  // Don't show system messages to users
           .map((msg: any, index: number) => {
             // Process the message content to remove triggers
-            const { processedContent: content, hasPaymentTrigger: messageHasPaymentTrigger, nameChangeValue } = processMessageContent(msg.content);
+            const { processedContent: content, hasPaymentTrigger: messageHasPaymentTrigger, hasCreditTrigger: messageHasCreditTrigger, nameChangeValue } = processMessageContent(msg.content);
             if (messageHasPaymentTrigger) {
               hasPaymentTrigger = true;
+            }
+            if (messageHasCreditTrigger) {
+              hasCreditTrigger = true;
             }
             // Handle name change trigger when loading messages
             if (nameChangeValue) {
@@ -335,10 +401,18 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
             };
           });
         setMessages(uiMessages);
-        // Update payment trigger state if any message contained a payment trigger
+        // Списываем кредит если в загруженных сообщениях был триггер использования
+        if (hasCreditTrigger) {
+          useAnalysisCredit().then(r => {
+            updateUserProfile({ available_analyses: r.available_analyses });
+          }).catch(e => { logger.error('Deduct credit fail:', e); });
+        }
+        // UpsellCard показываем только если кредитов реально нет
         if (hasPaymentTrigger) {
           setPaymentTriggered(true);
-          setShowUpsell(true);
+          if ((user?.available_analyses ?? 0) <= 0) {
+            setShowUpsell(true);
+          }
         }
       } catch (error) {
         logger.error('Error loading most recent chat messages:', error);
@@ -380,11 +454,18 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
       setChats(prev => [newChat, ...prev]);
       setCurrentChatId(result.chat_id);
       setCurrentChatTitle(result.title);
-      // Process the greeting message for potential triggers
-      const { processedContent: processedGreeting, hasPaymentTrigger, nameChangeValue, symbolsValue } = processMessageContent(greetingMessage);
+      // Process the greeting message for potential triggers (не должно быть в приветствии, но защита)
+      const { processedContent: processedGreeting, hasPaymentTrigger, hasCreditTrigger, nameChangeValue, symbolsValue } = processMessageContent(greetingMessage);
+      if (hasCreditTrigger) {
+        useAnalysisCredit().then(r => {
+          updateUserProfile({ available_analyses: r.available_analyses });
+        }).catch(e => { logger.error('Deduct credit fail:', e); });
+      }
       if (hasPaymentTrigger) {
         setPaymentTriggered(true);
-        setShowUpsell(true);
+        if ((user?.available_analyses ?? 0) <= 0) {
+          setShowUpsell(true);
+        }
       }
       // Add only the friendly greeting to the UI
       setMessages([{
@@ -419,6 +500,84 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
     }
   };
   
+  // Авто-отправка «Да» для запуска глубокого анализа по кредиту.
+  const handleStartDeepAnalysis = async () => {
+    setShowUpsell(false);
+    setPaymentTriggered(false);
+    const msg = "Да, используй один кредит для глубокого анализа.";
+    setMessages(prev => [...prev, {
+      id: `user-${Date.now()}`, text: msg, isUser: true, timestamp: new Date(),
+    }]);
+    setIsAiTyping(true);
+    isStreamingRef.current = true;
+    try {
+      try {
+        const r = await useAnalysisCredit();
+        updateUserProfile({ available_analyses: r.available_analyses });
+      } catch (e) { logger.error('Credit deduct fail:', e); }
+      const aid = `ai-${Date.now()}`;
+      streamTextRef.current = '';
+      setMessages(prev => [...prev, { id: aid, text: '', isUser: false, timestamp: new Date() }]);
+      const onData = (data: any) => {
+        if (data.type === 'stream' && data.content) {
+          streamTextRef.current += data.content;
+          setRenderTick(n => n + 1);
+          setMessages(prev => {
+            const i = prev.findIndex(m => m.id === aid);
+            if (i < 0) return prev;
+            const u = [...prev];
+            u[i] = { ...u[i], text: streamTextRef.current };
+            return u;
+          });
+        } else if (data.type === 'complete') {
+          const fin = data.content || streamTextRef.current;
+          isStreamingRef.current = false;
+          setIsAiTyping(false);
+          let cl = fin;
+          const nm = cl.match(/\[NAME_CHANGE\s*=\s*["']([^"']*)["']\]/);
+          if (nm) { cl = cl.replace(nm[0], '').trim(); }
+          cl = cl.replace(/\[SYMBOLS\s*=\s*["']([^"']*)["']\]/g, '').trim();
+          const { processedContent, hasPaymentTrigger } = processMessageContent(cl);
+          setMessages(prev => {
+            const i = prev.findIndex(m => m.id === aid);
+            if (i < 0) return prev;
+            const u = [...prev];
+            u[i] = { ...u[i], text: processedContent };
+            return u;
+          });
+          if (nm && currentChatId) {
+            updateChatTitle(currentChatId, nm[1]).then(() => {
+              setCurrentChatTitle(nm[1]);
+              setChats(prev => prev.map(c =>
+                c.id === currentChatId ? { ...c, title: nm![1] } : c
+              ));
+            }).catch(logger.error);
+          }
+          if (hasPaymentTrigger && (user?.available_analyses ?? 0) <= 0) {
+            setPaymentTriggered(true);
+            setShowUpsell(true);
+          }
+        } else if (data.error) {
+          isStreamingRef.current = false;
+          setIsAiTyping(false);
+          setMessages(prev => {
+            const i = prev.findIndex(m => m.id === aid);
+            if (i < 0) return prev;
+            const u = [...prev];
+            u[i] = { ...u[i], text: `Ошибка: ${data.error}` };
+            return u;
+          });
+        }
+      };
+      await sendMessageStream(msg, onData);
+      if (isStreamingRef.current) { isStreamingRef.current = false; setIsAiTyping(false); }
+    } catch (error) {
+      logger.error('Deep analysis start err:', error);
+      isStreamingRef.current = false;
+      setIsAiTyping(false);
+    }
+  };
+
   const handleSelectChat = async (chat: Chat) => {
     isStreamingRef.current = false;
     streamTextRef.current = '';
@@ -432,17 +591,20 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
       const chatMessages = switchResult.messages || [];
       // Filter out system messages and convert to UI format
       let hasPaymentTrigger = false;
+      let hasCreditTrigger = false;
       const uiMessages = chatMessages
         .filter((msg: any) => msg.role !== 'system')  // Don't show system messages to users
         .map((msg: any, index: number) => {
           // Process the message content to remove triggers
-          const { processedContent: content, hasPaymentTrigger: messageHasPaymentTrigger, nameChangeValue, symbolsValue } = processMessageContent(msg.content);
+          const { processedContent: content, hasPaymentTrigger: messageHasPaymentTrigger, hasCreditTrigger: messageHasCreditTrigger, nameChangeValue } = processMessageContent(msg.content);
           if (messageHasPaymentTrigger) {
             hasPaymentTrigger = true;
           }
-          // Handle name change and symbols triggers if needed when loading messages
+          if (messageHasCreditTrigger) {
+            hasCreditTrigger = true;
+          }
+          // Handle name change trigger when loading messages
           if (nameChangeValue && currentChatId) {
-            // Update chat title in a separate operation if this is the current chat
             updateChatTitle(currentChatId, nameChangeValue)
               .then(() => {
                 setCurrentChatTitle(nameChangeValue);
@@ -463,10 +625,18 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
           };
         });
       setMessages(uiMessages);
-      // Update payment trigger state if any message contained a payment trigger
+      // Списываем кредит если в загруженных сообщениях был триггер использования
+      if (hasCreditTrigger) {
+        useAnalysisCredit().then(r => {
+          updateUserProfile({ available_analyses: r.available_analyses });
+        }).catch(e => { logger.error('Deduct credit fail:', e); });
+      }
+      // UpsellCard показываем только если кредитов реально нет
       if (hasPaymentTrigger) {
         setPaymentTriggered(true);
-        setShowUpsell(true);
+        if ((user?.available_analyses ?? 0) <= 0) {
+          setShowUpsell(true);
+        }
       }
     } catch (error) {
       logger.error('Error switching chat:', error);
@@ -594,7 +764,7 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
             cleanContent = cleanContent.replace(symbolsMatch[0], '').trim();
           }
 
-          const { processedContent, hasPaymentTrigger } = processMessageContent(cleanContent);
+          const { processedContent, hasPaymentTrigger, hasCreditTrigger } = processMessageContent(cleanContent);
 
           setMessages(prev => {
             const idx = prev.findIndex(msg => msg.id === aiResponseId);
@@ -615,9 +785,19 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
               .catch(logger.error);
           }
 
+          // Списываем кредит при обнаружении триггера использования
+          if (hasCreditTrigger) {
+            useAnalysisCredit().then(r => {
+              updateUserProfile({ available_analyses: r.available_analyses });
+            }).catch(e => { logger.error('Deduct credit fail:', e); });
+          }
+
+          // UpsellCard показываем только если реально нет кредитов
           if (hasPaymentTrigger) {
             setPaymentTriggered(true);
-            setShowUpsell(true);
+            if ((user?.available_analyses ?? 0) <= 0) {
+              setShowUpsell(true);
+            }
           }
         } else if (data.error) {
           isStreamingRef.current = false;
@@ -1111,7 +1291,11 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
                       ))}
                     </AnimatePresence>
                     {showUpsell && (
-                      <UpsellCard price="499₽" onPurchase={handlePurchase} />
+                      (user?.available_analyses ?? 0) > 0 ? (
+                        <DeepAnalysisStartCard onStart={handleStartDeepAnalysis} />
+                      ) : (
+                        <UpsellCard price="499₽" onPurchase={handlePurchase} />
+                      )
                     )}
                     <div ref={messagesEndRef} />
                   </div>
@@ -1189,7 +1373,7 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
 
           <div
             className={`flex items-end gap-2 sm:gap-3 rounded-[20px] sm:rounded-[24px] px-4 sm:px-5 py-3 sm:py-4 transition-all duration-300 ${
-              (showUpsell && paymentTriggered) || isAiTyping ? 'opacity-40 pointer-events-none' : ''
+              (showUpsell && paymentTriggered && (user?.available_analyses ?? 0) <= 0) || isAiTyping ? 'opacity-40 pointer-events-none' : ''
             }`}
             style={{
               background: 'linear-gradient(135deg, rgba(26, 22, 64, 0.6), rgba(37, 31, 92, 0.4))',
@@ -1200,7 +1384,7 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
           >
             <motion.button
               onClick={toggleRecording}
-              disabled={(showUpsell && paymentTriggered) || isAiTyping}
+              disabled={(showUpsell && paymentTriggered && (user?.available_analyses ?? 0) <= 0) || isAiTyping}
               aria-label={isRecording ? 'Остановить запись' : 'Записать голосовое сообщение'}
               title={isRecording ? 'Остановить запись' : 'Записать голосовое сообщение'}
               className={`transition-colors p-2 rounded-xl flex-shrink-0 ${
@@ -1221,13 +1405,11 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
               placeholder={
                 isAiTyping
                   ? "Amnis размышляет..."
-                  : (showUpsell && paymentTriggered)
-                  ? "Завершите оформление анализа для продолжения..."
-                  : showUpsell
+                  : (showUpsell && paymentTriggered && (user?.available_analyses ?? 0) <= 0)
                   ? "Завершите оформление анализа для продолжения..."
                   : "Опишите ваш сон подробно..."
               }
-              disabled={(showUpsell && paymentTriggered) || isAiTyping}
+              disabled={(showUpsell && paymentTriggered && (user?.available_analyses ?? 0) <= 0) || isAiTyping}
               className="flex-1 bg-transparent text-[#E8E6F5] placeholder-[#B8B5D1] outline-none resize-none max-h-32 py-1 text-sm sm:text-base disabled:cursor-not-allowed"
               rows={1}
               style={{ minHeight: '24px' }}
@@ -1235,7 +1417,7 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
 
             <motion.button
               onClick={handleSendMessage}
-              disabled={!inputValue.trim() || (showUpsell && paymentTriggered) || isAiTyping}
+              disabled={!inputValue.trim() || (showUpsell && paymentTriggered && (user?.available_analyses ?? 0) <= 0) || isAiTyping}
               aria-label="Отправить сообщение"
               title="Отправить сообщение"
               className={`p-2 rounded-xl flex-shrink-0 transition-all ${
