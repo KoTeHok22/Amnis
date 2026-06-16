@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
+import { toast } from 'sonner@2.0.3';
 import { useAuth } from '../context/AuthContext';
 import { PrimaryCTA } from './PrimaryCTA';
 import { SparkleIcon } from './SparkleIcon';
 import { X, User, Phone, Calendar, Sparkles, Lock, Edit2, Check } from 'lucide-react';
 import { updateUserProfile as updateProfileAPI, getUserSubscription, changePassword, fetchUserProfileData, purchasePlan, createNicePayPayment } from '../services/api';
+import { pricingPlans, BASE_PRICE_PER_ANALYSIS } from '../data/pricingPlans';
+import { logger } from '../utils/logger';
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -20,12 +23,6 @@ interface UserProfile {
   availableAnalyses: number;
 }
 
-const pricingPlans = [
-  { id: 'plan-1', name: 'Одиночный', analyses: 1, price: 199, pricePerAnalysis: 199, popular: false },
-  { id: 'plan-5', name: 'Начальный', analyses: 5, price: 799, pricePerAnalysis: 160, popular: true },
-  { id: 'plan-10', name: 'Глубокий', analyses: 10, price: 1399, pricePerAnalysis: 140, popular: false },
-  { id: 'plan-15', name: 'Мастер', analyses: 15, price: 1899, pricePerAnalysis: 127, popular: false },
-];
 
 export function ProfileModal({ isOpen, onClose, onPurchase }: ProfileModalProps) {
   const { user, updateUserProfile, fetchUserProfile } = useAuth();
@@ -121,7 +118,7 @@ export function ProfileModal({ isOpen, onClose, onPurchase }: ProfileModalProps)
       });
       setIsEditing(false);
     } catch (error) {
-      console.error('Error updating profile:', error);
+      logger.error('Error updating profile:', error);
     } finally {
       setLoading(false);
     }
@@ -156,9 +153,9 @@ export function ProfileModal({ isOpen, onClose, onPurchase }: ProfileModalProps)
         newPassword: '',
         confirmPassword: ''
       });
-      setShowPasswordChange(false);
+      setShowPasswordChangeModal(false);
     } catch (error) {
-      console.error('Error changing password:', error);
+      logger.error('Error changing password:', error);
       setPasswordChangeError('Ошибка при смене пароля. Проверьте старый пароль и попробуйте снова.');
     } finally {
       setLoading(false);
@@ -191,13 +188,12 @@ export function ProfileModal({ isOpen, onClose, onPurchase }: ProfileModalProps)
         window.open(result.link, '_blank');
 
         // Show info message - user's subscription will be updated via webhook
-        alert('Страница оплаты открыта в новой вкладке. После завершения оплаты ваш баланс будет пополнен автоматически.');
+        toast.info('Страница оплаты открыта в новой вкладке. После завершения оплаты ваш баланс будет пополнен автоматически.');
       } else {
-        console.error('No payment link received');
+        toast.error('Не удалось получить ссылку на оплату. Попробуйте позже.');
       }
     } catch (error: any) {
-      console.error('Payment error:', error);
-      alert(error?.detail || 'Ошибка при создании платежа');
+      toast.error(error?.detail || 'Ошибка при создании платежа');
     } finally {
       setLoading(false);
       setShowPaymentConfirmation(false);
@@ -236,6 +232,7 @@ export function ProfileModal({ isOpen, onClose, onPurchase }: ProfileModalProps)
                 {/* Close Button */}
                 <button
                   onClick={onClose}
+                  aria-label="Закрыть"
                   className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center bg-[rgba(13,11,36,0.6)] hover:bg-[rgba(13,11,36,0.8)] border border-[rgba(169,152,255,0.2)] hover:border-[rgba(169,152,255,0.4)] transition-all z-10"
                   disabled={loading}
                 >
@@ -253,7 +250,7 @@ export function ProfileModal({ isOpen, onClose, onPurchase }: ProfileModalProps)
                     <User className="w-8 h-8 text-[#F4E0A7]" />
                   </div>
                   <div className="flex-1">
-                    <h2 className="text-[#F4E0A7]">Профиль</h2>
+                    <h2 className="text-[#F4E0A7] font-mystical">Профиль</h2>
                     <p className="text-[#B8B5D1] text-sm mt-1">Управление личными данными и тарифами</p>
                   </div>
                 </div>
@@ -425,7 +422,7 @@ export function ProfileModal({ isOpen, onClose, onPurchase }: ProfileModalProps)
                       <div className="text-[#F4E0A7] text-2xl">{currentPlan.price}₽</div>
                       {currentPlan.analyses > 1 && (
                         <div className="text-[#A998FF] text-xs mt-1">
-                          Экономия {((currentPlan.analyses * 199) - currentPlan.price)}₽
+                          Экономия {((currentPlan.analyses * BASE_PRICE_PER_ANALYSIS) - currentPlan.price)}₽
                         </div>
                       )}
                     </div>

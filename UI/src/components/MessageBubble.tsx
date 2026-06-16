@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
+import { toast } from 'sonner@2.0.3';
 import { Volume2, VolumeX, Moon } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -7,10 +8,9 @@ import remarkGfm from 'remark-gfm';
 interface MessageBubbleProps {
   message: string;
   isUser: boolean;
-  onPlayAudio?: () => void;
 }
 
-export function MessageBubble({ message, isUser, onPlayAudio }: MessageBubbleProps) {
+export function MessageBubble({ message, isUser }: MessageBubbleProps) {
   const [isPlaying, setIsPlaying] = useState(false);
 
   const handlePlayAudio = async () => {
@@ -71,8 +71,7 @@ export function MessageBubble({ message, isUser, onPlayAudio }: MessageBubblePro
 
       window.speechSynthesis.speak(utterance);
     } else {
-      console.error('Text-to-speech not supported in this browser');
-      alert('Text-to-speech is not supported in your browser. Please try a different browser.');
+      toast.error('Озвучивание текста не поддерживается в вашем браузере. Попробуйте другой браузер.');
     }
   };
 

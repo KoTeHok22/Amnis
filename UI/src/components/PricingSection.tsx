@@ -4,61 +4,14 @@ import { PrimaryCTA } from './PrimaryCTA';
 import { SparkleIcon } from './SparkleIcon';
 import { Sparkles, Check } from 'lucide-react';
 import { PricingCard } from './PricingCard';
+import { pricingPlans, deepAnalysisFeatures } from '../data/pricingPlans';
 
 interface PricingSectionProps {
   onSelectPlan: () => void;
 }
 
-interface PricingPlan {
-  id: string;
-  name: string;
-  analyses: number;
-  price: number;
-  pricePerAnalysis: number;
-  popular?: boolean;
-}
-
-const pricingPlans: PricingPlan[] = [
-  {
-    id: 'single',
-    name: 'Пробный',
-    analyses: 1,
-    price: 199,
-    pricePerAnalysis: 199,
-  },
-  {
-    id: 'starter',
-    name: 'Начальный',
-    analyses: 5,
-    price: 799,
-    pricePerAnalysis: 160,
-    popular: true,
-  },
-  {
-    id: 'standard',
-    name: 'Стандартный',
-    analyses: 10,
-    price: 1399,
-    pricePerAnalysis: 140,
-  },
-  {
-    id: 'premium',
-    name: 'Премиум',
-    analyses: 15,
-    price: 1899,
-    pricePerAnalysis: 127,
-  },
-];
-
-const deepAnalysisFeatures = [
-  'Детальный разбор всех символов',
-  'Психологический анализ',
-  'Персональные рекомендации',
-  'Связь с подсознанием',
-];
-
 export function PricingSection({ onSelectPlan }: PricingSectionProps) {
-  const [selectedPlan, setSelectedPlan] = useState<string>('starter');
+  const [selectedPlan, setSelectedPlan] = useState<string>('plan-5');
 
   const handleSelectPlan = (planId: string) => {
     setSelectedPlan(planId);
@@ -76,7 +29,7 @@ export function PricingSection({ onSelectPlan }: PricingSectionProps) {
           className="text-center mb-8 sm:mb-10 relative px-4"
         >
           <SparkleIcon className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-8 text-[#F4E0A7]" size={24} delay={0} />
-          <h2 className="text-[#E8E6F5] mb-3 sm:mb-4">Тарифы</h2>
+          <h2 className="text-[#E8E6F5] mb-3 sm:mb-4 font-mystical">Тарифы</h2>
           <p className="text-[#B8B5D1] max-w-2xl mx-auto text-sm sm:text-base mb-6">
             Выберите количество глубоких анализов. Все тарифы предоставляют одинаковый уровень качества и детализации.
           </p>
@@ -88,7 +41,7 @@ export function PricingSection({ onSelectPlan }: PricingSectionProps) {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.2 }}
-              className="inline-flex flex-wrap gap-3 sm:gap-4 justify-center"
+              className="grid grid-cols-2 gap-3 sm:inline-flex sm:flex-wrap sm:gap-4 sm:justify-center"
             >
               {deepAnalysisFeatures.map((feature, idx) => (
                 <div 

@@ -42,6 +42,24 @@ export function LandingView({ onStartClick }: LandingViewProps) {
       <AnimatedBackground />
       <FloatingSparkles />
 
+      {/* Sticky header */}
+      <header className="sticky top-0 z-30 backdrop-blur-md bg-[rgba(13,11,36,0.7)] border-b border-[rgba(169,152,255,0.12)]">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center bg-gradient-to-br from-[rgba(169,152,255,0.3)] to-[rgba(244,224,167,0.3)]">
+              <Moon className="w-4 h-4 text-[#F4E0A7]" />
+            </div>
+            <span className="brand text-[#E8E6F5] text-lg" style={{ fontWeight: 700 }}>Amnis</span>
+          </div>
+          <button
+            onClick={onStartClick}
+            className="px-4 sm:px-5 py-2 rounded-full text-sm text-[#F4E0A7] border border-[rgba(244,224,167,0.4)] hover:bg-[rgba(244,224,167,0.1)] transition-colors"
+          >
+            Войти
+          </button>
+        </div>
+      </header>
+
       {/* Hero Section */}
       <section className="relative z-10 px-4 sm:px-6 pt-16 sm:pt-20 md:pt-24 pb-20 sm:pb-28 md:pb-32 text-center">
         <div className="max-w-5xl mx-auto">
@@ -79,7 +97,7 @@ export function LandingView({ onStartClick }: LandingViewProps) {
             transition={{ duration: 0.7, delay: 0.35 }}
             className="text-[#B8B5D1] text-base sm:text-lg mb-8 sm:mb-12 max-w-2xl mx-auto leading-relaxed px-4 font-accent" style={{ fontSize: 'clamp(16px, 4vw, 19px)', fontStyle: 'italic' }}
           >
-            <span className="text-[#E8E6F5] font-tech" style={{ fontWeight: 600 }}>Amnis</span> — ваш проводник в мир сновидений. 
+            <span className="text-[#E8E6F5] brand" style={{ fontWeight: 700 }}>Amnis</span> — ваш проводник в мир сновидений.
             Глубинная интерпретация через призму юнгианской психологии и символизма.
           </motion.p>
 
@@ -160,7 +178,7 @@ export function LandingView({ onStartClick }: LandingViewProps) {
           >
             <SparkleIcon className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-8 text-[#F4E0A7]" size={24} delay={0.2} />
             <h2 className="text-[#E8E6F5] mb-3 sm:mb-4 font-mystical">Возможности Amnis</h2>
-            <p className="text-[#B8B5D1] max-w-xl mx-auto text-sm sm:text-base font-symbolic">
+            <p className="text-[#B8B5D1] max-w-xl mx-auto text-sm sm:text-base">
               Продвинутый инструментарий для работы с вашими сновидениями
             </p>
           </motion.div>
@@ -242,7 +260,7 @@ export function LandingView({ onStartClick }: LandingViewProps) {
       <footer className="relative z-10 px-6 py-10 border-t border-[rgba(169,152,255,0.1)]">
         <div className="max-w-6xl mx-auto text-center">
           <p className="text-[#B8B5D1] text-sm font-light">
-            © 2025 Amnis — Проводник в мир сновидений
+            © {new Date().getFullYear()} <span className="brand">Amnis</span> — Проводник в мир сновидений
           </p>
         </div>
       </footer>

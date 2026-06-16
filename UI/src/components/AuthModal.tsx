@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PrimaryCTA } from './PrimaryCTA';
 import { SparkleIcon } from './SparkleIcon';
@@ -7,6 +7,7 @@ import { ResetPasswordModal } from './ResetPasswordModal';
 import { X, Moon, Phone, Lock, Eye, EyeOff } from 'lucide-react';
 import { registerUser, loginUser } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { logger } from '../utils/logger';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -15,8 +16,6 @@ interface AuthModalProps {
 }
 
 type AuthMode = 'login' | 'register' | 'verify';
-
-import React, { useState, useEffect } from 'react';
 
 export function AuthModal({ isOpen, onClose, onAuth }: AuthModalProps) {
   const { login } = useAuth();
@@ -99,7 +98,7 @@ export function AuthModal({ isOpen, onClose, onAuth }: AuthModalProps) {
         onClose();
       }
     } catch (err: any) {
-      console.error('Authentication error:', err);
+      logger.error('Authentication error:', err);
       setError(err.detail || 'Произошла ошибка при аутентификации');
     } finally {
       setLoading(false);
@@ -162,7 +161,7 @@ export function AuthModal({ isOpen, onClose, onAuth }: AuthModalProps) {
 
   const isValidPassword = () => {
     if (password.length < 6) {
-      alert('Пароль должен содержать минимум 6 символов');
+      setError('Пароль должен содержать минимум 6 символов');
       return false;
     }
 
@@ -173,7 +172,7 @@ export function AuthModal({ isOpen, onClose, onAuth }: AuthModalProps) {
       const hasNumbers = /\d/.test(password);
 
       if (!hasUpperCase || !hasLowerCase || !hasNumbers) {
-        alert('Пароль должен содержать хотя бы одну заглавную букву, одну строчную букву и одну цифру');
+        setError('Пароль должен содержать хотя бы одну заглавную букву, одну строчную букву и одну цифру');
         return false;
       }
     }
@@ -288,6 +287,7 @@ export function AuthModal({ isOpen, onClose, onAuth }: AuthModalProps) {
 
               <button
                 onClick={onClose}
+                aria-label="Закрыть"
                 className="absolute top-6 right-6 text-[#B8B5D1] hover:text-[#E8E6F5] transition-colors p-2 rounded-xl hover:bg-[rgba(169,152,255,0.1)] z-10"
               >
                 <X className="w-5 h-5" />
@@ -300,9 +300,9 @@ export function AuthModal({ isOpen, onClose, onAuth }: AuthModalProps) {
 
                 <h2 className="text-[#F4E0A7] mb-3 text-center font-mystical">
                   {mode === 'login' ? (
-                    <>Вход в <span className="font-tech">Amnis</span></>
+                    <>Вход в <span className="brand">Amnis</span></>
                   ) : (
-                    <>Регистрация в <span className="font-tech">Amnis</span></>
+                    <>Регистрация в <span className="brand">Amnis</span></>
                   )}
                 </h2>
                 <p className="text-[#B8B5D1] mb-5 leading-relaxed text-center text-sm sm:text-base font-accent" style={{ fontStyle: 'italic' }}>
@@ -359,6 +359,7 @@ export function AuthModal({ isOpen, onClose, onAuth }: AuthModalProps) {
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
+                        aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B8B5D1] hover:text-[#E8E6F5] transition-colors p-1"
                         disabled={loading}
                       >
@@ -432,6 +433,7 @@ export function AuthModal({ isOpen, onClose, onAuth }: AuthModalProps) {
                         <button
                           type="button"
                           onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          aria-label={showConfirmPassword ? 'Скрыть пароль' : 'Показать пароль'}
                           className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B8B5D1] hover:text-[#E8E6F5] transition-colors p-1"
                           disabled={loading}
                         >
@@ -514,7 +516,7 @@ export function AuthModal({ isOpen, onClose, onAuth }: AuthModalProps) {
               onAuth();
               onClose();
             } catch (error) {
-              console.error('Error completing registration:', error);
+              logger.error('Error completing registration:', error);
             }
           } else if (mode === 'login') {
             const loginResult = await import('../services/api').then(api =>

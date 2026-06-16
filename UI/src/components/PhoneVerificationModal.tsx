@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { toast } from 'sonner@2.0.3';
 import { PrimaryCTA } from './PrimaryCTA';
 import { SparkleIcon } from './SparkleIcon';
 import { X, Moon, Check } from 'lucide-react';
@@ -75,7 +76,7 @@ export function PhoneVerificationModal({
 
   const handleResendCode = () => {
     // In a real app, this would resend the code
-    alert('Код отправлен повторно!');
+    toast.success('Код отправлен повторно!');
     setCode(['', '', '', '']);
     inputRefs.current[0]?.focus();
     setIsCodeValid(false);
@@ -113,6 +114,7 @@ export function PhoneVerificationModal({
 
             <button
               onClick={onClose}
+              aria-label="Закрыть"
               className="absolute top-6 right-6 text-[#B8B5D1] hover:text-[#E8E6F5] transition-colors p-2 rounded-xl hover:bg-[rgba(169,152,255,0.1)] z-10"
             >
               <X className="w-5 h-5" />

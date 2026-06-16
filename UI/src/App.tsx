@@ -1,9 +1,11 @@
 import React, { useState, lazy, Suspense, useEffect } from 'react';
+import { toast } from 'sonner@2.0.3';
 import { LandingView } from './components/LandingView';
 import { AuthModal } from './components/AuthModal';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ProfileModal } from './components/ProfileModal';
 import { PaymentProvider } from './context/PaymentContext';
+import { Toaster } from './components/ui/sonner';
 
 const ChatWindow = lazy(() => import('./components/ChatWindow').then(module => ({ default: module.ChatWindow })));
 
@@ -46,12 +48,8 @@ function AppContent() {
 
   // Handle purchase from profile modal
   const handlePurchase = (planId: string) => {
-    console.log(`Successfully purchased plan: ${planId}`);
-    // Here you would typically handle post-purchase logic
-    // This could include showing success messages, analytics, etc.
-
-    // Alert user of successful purchase
-    alert(`Спасибо за покупку тарифа ${planId}!`);
+    // Notify user of successful purchase
+    toast.success(`Спасибо за покупку тарифа ${planId}!`);
   };
 
   // Switch to profile view
@@ -86,6 +84,7 @@ function AppContent() {
         onClose={() => setShowAuth(false)}
         onAuth={handleAuth}
       />
+      <Toaster />
     </>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 
 export function StarField() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -8,6 +8,10 @@ export function StarField() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    // Уважать настройку пользователя: при reduced-motion канвас не анимируем.
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    if (reducedMotion?.matches) return;
+
     const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return;
 
@@ -15,11 +19,15 @@ export function StarField() {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
     };
-    
+
     setCanvasSize();
 
+    // Масштабируем число частиц от площади экрана, чтобы не жечь батарею на мобильных.
+    const area = window.innerWidth * window.innerHeight;
+    const densityScale = Math.min(1, area / (1440 * 900));
+
     const stars: Array<{ x: number; y: number; radius: number; opacity: number; twinkleSpeed: number }> = [];
-    const starCount = 150;
+    const starCount = Math.round(110 * densityScale);
 
     for (let i = 0; i < starCount; i++) {
       stars.push({
@@ -32,7 +40,7 @@ export function StarField() {
     }
 
     const sparkles: Array<{ x: number; y: number; opacity: number; fadeSpeed: number }> = [];
-    const sparkleCount = 250;
+    const sparkleCount = Math.round(140 * densityScale);
 
     for (let i = 0; i < sparkleCount; i++) {
       sparkles.push({
@@ -93,6 +101,17 @@ export function StarField() {
 
     animate();
 
+    // Пауза анимации при скрытой вкладке (не жечь кадры в фоне).
+    const handleVisibility = () => {
+      if (document.hidden) {
+        cancelAnimationFrame(animationFrameId);
+      } else {
+        animationFrameId = requestAnimationFrame(animate);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+
     // Debounced resize
     let resizeTimeout: number;
     const handleResize = () => {
@@ -106,6 +125,7 @@ export function StarField() {
 
     return () => {
       cancelAnimationFrame(animationFrameId);
+      document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('resize', handleResize);
       clearTimeout(resizeTimeout);
     };
@@ -115,14 +135,16 @@ export function StarField() {
 }
 
 export function AnimatedBackground() {
+  const reducedMotion = useReducedMotion();
+
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
       <StarField />
-      
+
       {/* Soft glows */}
       <motion.div
         className="absolute top-[10%] left-[10%] w-[600px] h-[600px] rounded-full bg-[radial-gradient(circle,rgba(169,152,255,0.15)_0%,transparent_70%)] blur-[60px] will-change-transform"
-        animate={{
+        animate={reducedMotion ? undefined : {
           scale: [1, 1.1, 1],
           opacity: [0.3, 0.5, 0.3],
         }}
@@ -132,10 +154,10 @@ export function AnimatedBackground() {
           ease: 'easeInOut',
         }}
       />
-      
+
       <motion.div
         className="absolute bottom-0 right-0 w-[800px] h-[800px] rounded-full bg-[radial-gradient(circle,rgba(244,224,167,0.1)_0%,transparent_70%)] blur-[80px] will-change-transform"
-        animate={{
+        animate={reducedMotion ? undefined : {
           scale: [1, 1.2, 1],
           opacity: [0.2, 0.4, 0.2],
         }}

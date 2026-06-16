@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build output
+UI/build/
+UI/dist/
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Playwright / Chrome DevTools MCP artifacts
+.playwright-mcp/
+**/.playwright-mcp/
+
+# Audit & ad-hoc screenshots in the repo root (keep app assets under UI/src)
+/*.png
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Env
+.env
+.env.local

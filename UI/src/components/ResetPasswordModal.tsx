@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { toast } from 'sonner@2.0.3';
 import { PrimaryCTA } from './PrimaryCTA';
 import { SparkleIcon } from './SparkleIcon';
 import { X, Phone, Lock, Eye, EyeOff, Check } from 'lucide-react';
@@ -116,7 +117,7 @@ export function ResetPasswordModal({ isOpen, onClose, onReset }: ResetPasswordMo
     e.preventDefault();
     // Validate phone number
     if (phoneNumber.length < 10) {
-      alert('Пожалуйста, введите действительный номер телефона');
+      toast.error('Пожалуйста, введите действительный номер телефона');
       return;
     }
     // Move to code step
@@ -136,7 +137,7 @@ export function ResetPasswordModal({ isOpen, onClose, onReset }: ResetPasswordMo
 
     // Validate password length
     if (newPassword.length < 6) {
-      alert('Пароль должен содержать минимум 6 символов');
+      toast.error('Пароль должен содержать минимум 6 символов');
       return;
     }
 
@@ -146,13 +147,13 @@ export function ResetPasswordModal({ isOpen, onClose, onReset }: ResetPasswordMo
     const hasNumbers = /\d/.test(newPassword);
 
     if (!hasUpperCase || !hasLowerCase || !hasNumbers) {
-      alert('Пароль должен содержать хотя бы одну заглавную букву, одну строчную букву и одну цифру');
+      toast.error('Пароль должен содержать хотя бы одну заглавную букву, одну строчную букву и одну цифру');
       return;
     }
 
     // Validate if passwords match
     if (newPassword !== confirmPassword) {
-      alert('Пароли не совпадают');
+      toast.error('Пароли не совпадают');
       return;
     }
 
@@ -191,6 +192,7 @@ export function ResetPasswordModal({ isOpen, onClose, onReset }: ResetPasswordMo
           >
             <button
               onClick={onClose}
+              aria-label="Закрыть"
               className="absolute top-4 right-4 text-[#B8B5D1] hover:text-[#E8E6F5] transition-colors z-10"
             >
               <X className="w-5 h-5" />
@@ -374,6 +376,7 @@ export function ResetPasswordModal({ isOpen, onClose, onReset }: ResetPasswordMo
                       <button
                         type="button"
                         onClick={() => setShowNewPassword(!showNewPassword)}
+                        aria-label={showNewPassword ? 'Скрыть пароль' : 'Показать пароль'}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B8B5D1] hover:text-[#E8E6F5] transition-colors p-1"
                       >
                         {showNewPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -400,6 +403,7 @@ export function ResetPasswordModal({ isOpen, onClose, onReset }: ResetPasswordMo
                       <button
                         type="button"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        aria-label={showConfirmPassword ? 'Скрыть пароль' : 'Показать пароль'}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B8B5D1] hover:text-[#E8E6F5] transition-colors p-1"
                       >
                         {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}

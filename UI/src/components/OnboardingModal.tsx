@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PrimaryCTA } from './PrimaryCTA';
 import { SparkleIcon } from './SparkleIcon';
@@ -9,8 +9,6 @@ interface OnboardingModalProps {
   onClose: () => void;
   onSubmit: (name: string, birthDate: string) => void;
 }
-
-import React, { useState, useEffect } from 'react';
 
 export function OnboardingModal({ isOpen, onClose, onSubmit }: OnboardingModalProps) {
   const [name, setName] = useState('');
@@ -78,6 +76,7 @@ export function OnboardingModal({ isOpen, onClose, onSubmit }: OnboardingModalPr
 
             <button
               onClick={onClose}
+              aria-label="Закрыть"
               className="absolute top-6 right-6 text-[#B8B5D1] hover:text-[#E8E6F5] transition-colors p-2 rounded-xl hover:bg-[rgba(169,152,255,0.1)] z-10"
             >
               <X className="w-5 h-5" />
@@ -94,8 +93,8 @@ export function OnboardingModal({ isOpen, onClose, onSubmit }: OnboardingModalPr
                 <Moon className="w-8 h-8 text-[#F4E0A7]" />
               </div>
 
-              <h2 className="text-[#F4E0A7] mb-3">
-                <span className="font-tech">Amnis</span> приветствует вас
+              <h2 className="text-[#F4E0A7] mb-3 font-mystical">
+                <span className="brand">Amnis</span> приветствует вас
               </h2>
               <p className="text-[#B8B5D1] mb-8 leading-relaxed font-accent" style={{ fontSize: '17px', fontStyle: 'italic' }}>
                 Для персонализированного толкования снов мне нужно узнать о вас немного больше. 

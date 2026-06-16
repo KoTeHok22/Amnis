@@ -2,55 +2,15 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { PrimaryCTA } from './PrimaryCTA';
 import { Sparkles, Check } from 'lucide-react';
+import { pricingPlans, BASE_PRICE_PER_ANALYSIS } from '../data/pricingPlans';
 
 interface UpsellCardProps {
   price: string;
   onPurchase: () => void;
 }
 
-interface PricingPlan {
-  id: string;
-  name: string;
-  analyses: number;
-  price: number;
-  pricePerAnalysis: number;
-  popular?: boolean;
-}
-
-const pricingPlans: PricingPlan[] = [
-  {
-    id: 'single',
-    name: 'Пробный',
-    analyses: 1,
-    price: 199,
-    pricePerAnalysis: 199,
-  },
-  {
-    id: 'starter',
-    name: 'Начальный',
-    analyses: 5,
-    price: 799,
-    pricePerAnalysis: 160,
-    popular: true,
-  },
-  {
-    id: 'standard',
-    name: 'Стандартный',
-    analyses: 10,
-    price: 1399,
-    pricePerAnalysis: 140,
-  },
-  {
-    id: 'premium',
-    name: 'Премиум',
-    analyses: 15,
-    price: 1899,
-    pricePerAnalysis: 127,
-  },
-];
-
 export function UpsellCard({ price, onPurchase }: UpsellCardProps) {
-  const [selectedPlan, setSelectedPlan] = useState<string>('starter');
+  const [selectedPlan, setSelectedPlan] = useState<string>('plan-5');
   
   const benefits = [
     'Детальный разбор всех символов',
@@ -155,7 +115,7 @@ export function UpsellCard({ price, onPurchase }: UpsellCardProps) {
             <div className="min-h-[20px]">
               {currentPlan.analyses > 1 && (
                 <div className="text-[#A998FF] text-xs sm:text-sm mt-1">
-                  Экономия {((currentPlan.analyses * 199) - currentPlan.price)}₽
+                  Экономия {((currentPlan.analyses * BASE_PRICE_PER_ANALYSIS) - currentPlan.price)}₽
                 </div>
               )}
             </div>

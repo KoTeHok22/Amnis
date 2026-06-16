@@ -14,6 +14,76 @@
   --font-family-display: 'Bainsley', serif;
   --font-family-accent: 'WildRune', serif;
   --font-family-body: 'Bainsley', serif;
+  --font-family-mystical: 'Bainsley', serif;
+  --font-family-symbolic: 'Novem', 'WildRune', serif;
+  --font-family-tech: 'Pulstar', monospace;
+  --font-family-light: 'BubbleSans', serif;
+  --font-family-brand: 'Bainsley', 'Trebuchet MS', 'Segoe UI', sans-serif;
+}
+
+/* Custom fonts from UI/src/fonts/ */
+@font-face {
+  font-family: 'Bainsley';
+  src: url('../fonts/Bainsley.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Bainsley';
+  src: url('../fonts/BainsleyBold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Bainsley';
+  src: url('../fonts/BainsleyItalic.ttf') format('truetype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Bainsley';
+  src: url('../fonts/BainsleyBoldItalic.ttf') format('truetype');
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Novem';
+  src: url('../fonts/Novem.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Pulstar';
+  src: url('../fonts/Pulstar.ttf') format('truetype'), url('../fonts/Pulstar.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'BubbleSans';
+  src: url('../fonts/BubbleSans.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'WildRune';
+  src: url('../fonts/WildRune.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
 }
 
 @layer base {
@@ -21,6 +91,10 @@
   * {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  html {
+    scroll-behavior: smooth;
   }
 
   body {
@@ -68,11 +142,11 @@
     h1 {
       font-size: 44px;
     }
-    
+
     h2 {
       font-size: 32px;
     }
-    
+
     h3 {
       font-size: 18px;
     }
@@ -108,6 +182,68 @@
   }
 }
 
+@layer components {
+  /* Readable wordmark for the product name "Amnis" — never use the decorative Pulstar here */
+  .brand {
+    font-family: var(--font-family-brand);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    font-style: normal;
+    text-transform: none;
+  }
+
+  .font-display {
+    font-family: var(--font-family-display);
+  }
+
+  .font-body {
+    font-family: var(--font-family-body);
+  }
+
+  .font-accent {
+    font-family: var(--font-family-accent);
+  }
+
+  .font-mystical {
+    font-family: var(--font-family-mystical);
+  }
+
+  .font-symbolic {
+    font-family: var(--font-family-symbolic);
+  }
+
+  .font-tech {
+    font-family: var(--font-family-tech);
+  }
+
+  .font-light {
+    font-family: var(--font-family-light);
+    font-weight: 300;
+  }
+
+  .symbolic-text {
+    font-family: var(--font-family-symbolic);
+    letter-spacing: 0.05em;
+  }
+
+  .number-symbol {
+    font-family: var(--font-family-display);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  .tech-text {
+    font-family: var(--font-family-tech);
+    letter-spacing: 0.03em;
+  }
+
+  .mystical-decorative {
+    font-family: var(--font-family-accent);
+    letter-spacing: 0.1em;
+    font-style: italic;
+  }
+}
+
 /* Animated Background Gradient */
 .bg-animation {
   position: fixed;
@@ -132,59 +268,60 @@
 }
 
 .bg-animation .bg-2 {
-  background: linear-gradient(225deg, 
-    #0D0B24 0%, 
-    #3D357D 30%, 
-    rgba(169, 152, 255, 0.15) 50%, 
-    #1A1640 70%, 
+  background: linear-gradient(225deg,
+    #0D0B24 0%,
+    #3D357D 30%,
+    rgba(169, 152, 255, 0.15) 50%,
+    #1A1640 70%,
     #12103A 100%
   );
   animation: bg-fade-1 10s ease-in-out infinite;
 }
 
 .bg-animation .bg-3 {
-  background: linear-gradient(45deg, 
-    #251F5C 0%, 
-    rgba(244, 224, 167, 0.08) 35%, 
-    #2E2570 60%, 
-    rgba(169, 152, 255, 0.12) 80%, 
+  background: linear-gradient(45deg,
+    #251F5C 0%,
+    rgba(244, 224, 167, 0.08) 35%,
+    #2E2570 60%,
+    rgba(169, 152, 255, 0.12) 80%,
     #12103A 100%
   );
   animation: bg-fade-2 10s ease-in-out infinite;
 }
 
 @keyframes bg-fade-1 {
-  0% {
-    opacity: 1;
-  }
-  25% {
-    opacity: 0.7;
-  }
-  50% {
-    opacity: 0;
-  }
-  75% {
-    opacity: 0.7;
-  }
-  100% {
-    opacity: 1;
-  }
+  0% { opacity: 1; }
+  25% { opacity: 0.7; }
+  50% { opacity: 0; }
+  75% { opacity: 0.7; }
+  100% { opacity: 1; }
 }
 
 @keyframes bg-fade-2 {
-  0% {
-    opacity: 0;
+  0% { opacity: 0; }
+  25% { opacity: 0.8; }
+  50% { opacity: 1; }
+  75% { opacity: 0.5; }
+  100% { opacity: 0; }
+}
+
+/* Accessibility: respect reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
   }
-  25% {
-    opacity: 0.8;
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
-  50% {
-    opacity: 1;
-  }
-  75% {
-    opacity: 0.5;
-  }
-  100% {
-    opacity: 0;
+
+  .bg-animation .bg-2,
+  .bg-animation .bg-3 {
+    animation: none !important;
   }
 }

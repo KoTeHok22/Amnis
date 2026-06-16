@@ -5,11 +5,14 @@ import { AnimatedBackground } from './StarField';
 import { FloatingSparkles } from './SparkleIcon';
 import { Send, Mic, MicOff, Menu, Moon, Plus, MessageSquare, User, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { toast } from 'sonner@2.0.3';
 import { useAuth } from '../context/AuthContext';
 import { createChat, sendMessage, sendMessageStream, getUserChats, switchChat, deleteChat, getChatMessages, updateChatTitle, getStreamStatus, listenToStream } from '../services/chatApi';
 import { ProfileModal } from './ProfileModal';
 import PaymentWarningModal from './PaymentWarningModal';
 import { usePayment } from '../context/PaymentContext';
+import { pricingPlans } from '../data/pricingPlans';
+import { logger } from '../utils/logger';
 
 declare global {
   interface Window {
@@ -91,7 +94,7 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
           }
         }
       } catch (error) {
-        console.error('Error parsing creating chat state:', error);
+        logger.error('Error parsing creating chat state:', error);
         localStorage.removeItem('creatingChatState');
         if (showCreatingChatModal) {
           setShowCreatingChatModal(false);
@@ -109,6 +112,7 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
   const [showPaymentWarning, setShowPaymentWarning] = useState(false);
   const [renamingChatId, setRenamingChatId] = useState<string | null>(null);
   const [newChatTitle, setNewChatTitle] = useState<string>('');
+  const [chatPendingDeletion, setChatPendingDeletion] = useState<string | null>(null);
   
   // Check for ongoing chat creation in localStorage on component mount
   const [showCreatingChatModal, setShowCreatingChatModal] = useState<boolean>(() => {
@@ -123,12 +127,6 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
   const [, setRenderTick] = useState(0);
   const isStreamingRef = useRef<boolean>(false);
   
-  const pricingPlans = [
-    { id: 'plan-1', name: 'Одиночный', analyses: 1, price: 199, pricePerAnalysis: 199, popular: false },
-    { id: 'plan-5', name: 'Начальный', analyses: 5, price: 799, pricePerAnalysis: 160, popular: true },
-    { id: 'plan-10', name: 'Глубокий', analyses: 10, price: 1399, pricePerAnalysis: 140, popular: false },
-    { id: 'plan-15', name: 'Мастер', analyses: 15, price: 1899, pricePerAnalysis: 127, popular: false },
-  ];
   
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -203,7 +201,7 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
             if (nameChangeMatch) {
               cleanContent = cleanContent.replace(nameChangeMatch[0], '').trim();
               if (currentChatId) {
-                updateChatTitle(currentChatId, nameChangeMatch[1]).catch(console.error);
+                updateChatTitle(currentChatId, nameChangeMatch[1]).catch(logger.error);
                 setCurrentChatTitle(nameChangeMatch[1]);
               }
             }
@@ -317,7 +315,7 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
                     ));
                   })
                   .catch(error => {
-                    console.error('Error updating chat title:', error);
+                    logger.error('Error updating chat title:', error);
                   });
               }
               return {
@@ -334,7 +332,7 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
             setShowUpsell(true);
           }
         } catch (error) {
-          console.error('Error loading most recent chat messages:', error);
+          logger.error('Error loading most recent chat messages:', error);
           setMessages([]); // Clear messages if loading fails
         }
       } else {
@@ -344,7 +342,7 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
         setMessages([]);
       }
     } catch (error) {
-      console.error('Error loading user chats:', error);
+      logger.error('Error loading user chats:', error);
       // Even if loading fails, we still need to handle the UI state
       setChats([]);
       setCurrentChatId(null);
@@ -394,7 +392,7 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
         timestamp: new Date(),
       }]);
     } catch (error) {
-      console.error('Error creating chat:', error);
+      logger.error('Error creating chat:', error);
       // Fallback: create a local chat
       const newChat: Chat = {
         id: Date.now().toString(),
@@ -452,7 +450,7 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
                 ));
               })
               .catch(error => {
-                console.error('Error updating chat title:', error);
+                logger.error('Error updating chat title:', error);
               });
           }
           return {
@@ -469,42 +467,48 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
         setShowUpsell(true);
       }
     } catch (error) {
-      console.error('Error switching chat:', error);
-      alert('Ошибка при переключении чата');
+      logger.error('Error switching chat:', error);
+      toast.error('Ошибка при переключении чата');
     }
   };
   
-  const handleDeleteChat = async (chatId: string, event: React.MouseEvent) => {
+  const handleDeleteChat = (chatId: string, event: React.MouseEvent) => {
     // Prevent the click from also selecting the chat
     event.stopPropagation();
-    if (window.confirm('Вы уверены, что хотите удалить этот чат?')) {
-      try {
-        await deleteChat(chatId);
-        // Remove the chat from the UI
-        setChats(prev => prev.filter(chat => chat.id !== chatId));
-        // If we're deleting the current chat, switch to another chat or create a new one
-        if (currentChatId === chatId) {
-          setChats(prevChats => {
-            const remainingChats = prevChats.filter(chat => chat.id !== chatId);
-            if (remainingChats.length > 0) {
-              // Use setTimeout to avoid state update timing issues
-              setTimeout(() => {
-                const nextChat = remainingChats[0];
-                handleSelectChat(nextChat).catch(console.error);
-              }, 0);
-            } else {
-              // No remaining chats, create a new one
-              setTimeout(() => {
-                handleCreateNewChat();
-              }, 0);
-            }
-            return remainingChats;
-          });
-        }
-      } catch (error) {
-        console.error('Error deleting chat:', error);
-        alert('Ошибка при удалении чата');
+    // Open a styled confirmation modal instead of native confirm()
+    setChatPendingDeletion(chatId);
+  };
+
+  const confirmDeleteChat = async () => {
+    const chatId = chatPendingDeletion;
+    if (!chatId) return;
+    setChatPendingDeletion(null);
+    try {
+      await deleteChat(chatId);
+      // Remove the chat from the UI
+      setChats(prev => prev.filter(chat => chat.id !== chatId));
+      // If we're deleting the current chat, switch to another chat or create a new one
+      if (currentChatId === chatId) {
+        setChats(prevChats => {
+          const remainingChats = prevChats.filter(chat => chat.id !== chatId);
+          if (remainingChats.length > 0) {
+            // Use setTimeout to avoid state update timing issues
+            setTimeout(() => {
+              const nextChat = remainingChats[0];
+              handleSelectChat(nextChat).catch(logger.error);
+            }, 0);
+          } else {
+            // No remaining chats, create a new one
+            setTimeout(() => {
+              handleCreateNewChat();
+            }, 0);
+          }
+          return remainingChats;
+        });
       }
+    } catch (error) {
+      logger.error('Error deleting chat:', error);
+      toast.error('Ошибка при удалении чата');
     }
   };
   
@@ -525,8 +529,8 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
       setNewChatTitle('');
       return true;
     } catch (error) {
-      console.error('Error renaming chat:', error);
-      alert('Ошибка при переименовании чата');
+      logger.error('Error renaming chat:', error);
+      toast.error('Ошибка при переименовании чата');
       return false;
     }
   };
@@ -606,7 +610,7 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
                   chat.id === currentChatId ? { ...chat, title: nameChangeValue } : chat
                 ));
               })
-              .catch(console.error);
+              .catch(logger.error);
           }
 
           if (hasPaymentTrigger) {
@@ -633,7 +637,7 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
         setIsAiTyping(false);
       }
     } catch (error) {
-      console.error('Error sending message:', error);
+      logger.error('Error sending message:', error);
       isStreamingRef.current = false;
       setIsAiTyping(false);
       setMessages(prev => [...prev, {
@@ -687,10 +691,10 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
     setPaymentTriggered(false);
     // Show appropriate feedback to user
     if (status === 'paid') {
-      console.log('Платеж успешно завершен');
+      logger.log('Платеж успешно завершен');
       // Here we can add any logic that should happen when payment is successful
     } else {
-      console.log('Платеж отменен');
+      logger.log('Платеж отменен');
       // Here we can add any logic that should happen when payment is cancelled
     }
   };
@@ -770,16 +774,16 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
           };
           
           recognition.onerror = (event: any) => {
-            console.error('Speech recognition error', event.error);
+            logger.error('Speech recognition error', event.error);
             setIsRecording(false);
             if (event.error === 'no-speech') {
-              alert('Не удалось распознать речь. Пожалуйста, повторите попытку.');
+              toast.error('Не удалось распознать речь. Пожалуйста, повторите попытку.');
             } else if (event.error === 'audio-capture') {
-              alert('Ошибка захвата аудио. Проверьте настройки микрофона.');
+              toast.error('Ошибка захвата аудио. Проверьте настройки микрофона.');
             } else if (event.error === 'not-allowed') {
-              alert('Микрофон заблокирован. Разрешите доступ к микрофону в настройках браузера.');
+              toast.error('Микрофон заблокирован. Разрешите доступ к микрофону в настройках браузера.');
             } else {
-              alert(`Ошибка распознавания речи: ${event.error}`);
+              toast.error(`Ошибка распознавания речи: ${event.error}`);
             }
           };
           
@@ -794,21 +798,21 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
           recognitionRef.current = recognition; // Store the reference
         }
       } catch (error) {
-        console.error('Error accessing microphone:', error);
+        logger.error('Error accessing microphone:', error);
         if ((error as any).name === 'NotAllowedError') {
-          alert('Доступ к микрофону запрещен. Пожалуйста, разрешите доступ к микрофону в настройках браузера.');
+          toast.error('Доступ к микрофону запрещен. Пожалуйста, разрешите доступ к микрофону в настройках браузера.');
         } else if ((error as any).name === 'NotFoundError' || (error as any).name === 'DevicesNotFoundError') {
-          alert('Микрофон не найден на этом устройстве.');
+          toast.error('Микрофон не найден на этом устройстве.');
         } else {
-          alert('Произошла ошибка при доступе к микрофону. Пожалуйста, убедитесь, что микрофон подключен и разрешен в настройках браузера.');
+          toast.error('Произошла ошибка при доступе к микрофону. Пожалуйста, убедитесь, что микрофон подключен и разрешен в настройках браузера.');
         }
       }
     } else {
-      let errorMessage = 'Распознавание речи не поддерживается в вашем браузере.';
+      let errorMessage = 'Распознавание речи не поддерживается в вашем браузере. Пожалуйста, используйте современный браузер, например, Chrome.';
       if (!hasMediaDevices) {
-        errorMessage += '\nДоступ к микрофону недоступен. Убедитесь, что вы используете безопасное соединение (HTTPS).';
+        errorMessage = 'Доступ к микрофону недоступен. Убедитесь, что вы используете безопасное соединение (HTTPS), и современный браузер, например, Chrome.';
       }
-      alert(errorMessage + '\nПожалуйста, используйте современный браузер, например, Chrome.');
+      toast.error(errorMessage);
     }
   };
   
@@ -865,6 +869,8 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
                 <div className="flex space-x-2">
                   <motion.button
                     onClick={handleCreateNewChat}
+                    aria-label="Новый чат"
+                    title="Новый чат"
                     className="p-2 rounded-lg bg-[rgba(169,152,255,0.2)] hover:bg-[rgba(169,152,255,0.3)] text-[#A998FF] transition-colors"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
@@ -873,6 +879,8 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
                   </motion.button>
                   <motion.button
                     onClick={() => setShowSidebar(false)}
+                    aria-label="Свернуть список чатов"
+                    title="Свернуть список чатов"
                     className="p-2 rounded-lg bg-[rgba(244,224,167,0.1)] hover:bg-[rgba(244,224,167,0.2)] text-[#F4E0A7] transition-colors"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
@@ -949,6 +957,8 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
                               />
                               <button
                                 onClick={() => handleRenameChat(chat.id, newChatTitle)}
+                                aria-label="Сохранить название"
+                                title="Сохранить название"
                                 className="text-[#A998FF] hover:text-[#F4E0A7] transition-colors p-1"
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -982,6 +992,8 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
                                 setRenamingChatId(chat.id);
                                 setNewChatTitle(chat.title);
                               }}
+                              aria-label="Переименовать чат"
+                              title="Переименовать чат"
                               className="text-[#B8B5D1] hover:text-[#A998FF] transition-colors p-1 rounded hover:bg-[rgba(169,152,255,0.1)]"
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -991,6 +1003,8 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
                           )}
                           <button
                             onClick={(e) => handleDeleteChat(chat.id, e)}
+                            aria-label="Удалить чат"
+                            title="Удалить чат"
                             className="text-[#B8B5D1] hover:text-[#F4E0A7] transition-colors p-1 rounded hover:bg-[rgba(244,224,167,0.1)]"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1016,10 +1030,9 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
         )}
 
         {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col min-h-0" style={{
-          marginLeft: showSidebar && isDesktop ? '256px' : '0',
-          transition: 'margin-left 0.3s ease',
-        }}>
+        {/* На desktop сайдбар md:static уже занимает 256px в потоке flex,
+            поэтому дополнительный marginLeft не нужен (иначе двойной сдвиг). */}
+        <div className="flex-1 flex flex-col min-h-0">
           {/* Menu dropdown (moved out of scroller) */}
           {showMenu && (
             <div className="absolute top-20 right-4 z-70 bg-[#1A1640] border border-[rgba(169,152,255,0.3)] backdrop-blur-xl rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.5)] p-2 min-w-[160px]">
@@ -1045,6 +1058,8 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
             <div className="flex items-center gap-3 sm:gap-4">
               <button
                 onClick={() => setShowSidebar(!showSidebar)}
+                aria-label={showSidebar ? 'Свернуть список чатов' : 'Открыть список чатов'}
+                title={showSidebar ? 'Свернуть список чатов' : 'Открыть список чатов'}
                 className="text-[#B8B5D1] hover:text-[#F4E0A7] transition-colors p-2 rounded-xl hover:bg-[rgba(169,152,255,0.1)]"
               >
                 <Menu className="w-5 h-5" />
@@ -1060,10 +1075,10 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
                   <Moon className="w-4 h-4 sm:w-5 sm:h-5 text-[#F4E0A7]" />
                 </div>
                 <div>
-                  <h1 className="text-[#F4E0A7] text-[17px] sm:text-[20px]" style={{ fontFamily: 'Philosopher, serif', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                  <h1 className="text-[#F4E0A7] text-[17px] sm:text-[20px] font-mystical" style={{ textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                     {currentChatTitle}
                   </h1>
-                  <div className="text-[#B8B5D1] text-[10px] sm:text-xs hidden sm:block" style={{ fontFamily: 'Playfair Display, serif', fontStyle: 'italic' }}>Хранитель снов</div>
+                  <div className="text-[#B8B5D1] text-[10px] sm:text-xs hidden sm:block font-body italic">Хранитель снов</div>
                 </div>
               </div>
             </div>
@@ -1090,7 +1105,6 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
                           key={message.id}
                           message={message.text}
                           isUser={message.isUser}
-                          onPlayAudio={!message.isUser ? () => alert('TTS функция будет воспроизводить голос') : undefined}
                         />
                       ))}
                     </AnimatePresence>
@@ -1102,7 +1116,7 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center h-full min-h-[50vh]">
-                  <h2 className="text-[#F4E0A7] text-xl font-tech mb-6 text-center">Amnis, хранитель снов</h2>
+                  <h2 className="text-[#F4E0A7] text-xl mb-6 text-center font-mystical"><span className="brand">Amnis</span>, хранитель снов</h2>
                   <p className="text-[#B8B5D1] text-center mb-8 max-w-md">
                     Создайте чат, чтобы начать анализировать ваши сны и раскрывать тайны подсознания
                   </p>
@@ -1165,8 +1179,8 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
                   className="w-2 h-2 rounded-full bg-[#A998FF]"
                 />
               </div>
-              <span style={{ fontFamily: 'Playfair Display, serif', fontStyle: 'italic' }}>
-                Amnis раскрывает тайны вашего сна...
+              <span className="font-body italic">
+                <span className="brand">Amnis</span> раскрывает тайны вашего сна...
               </span>
             </motion.div>
           )}
@@ -1185,6 +1199,8 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
             <motion.button
               onClick={toggleRecording}
               disabled={(showUpsell && paymentTriggered) || isAiTyping}
+              aria-label={isRecording ? 'Остановить запись' : 'Записать голосовое сообщение'}
+              title={isRecording ? 'Остановить запись' : 'Записать голосовое сообщение'}
               className={`transition-colors p-2 rounded-xl flex-shrink-0 ${
                 isRecording
                   ? 'text-[#F4E0A7] bg-[rgba(244,224,167,0.15)]'
@@ -1218,6 +1234,8 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
             <motion.button
               onClick={handleSendMessage}
               disabled={!inputValue.trim() || (showUpsell && paymentTriggered) || isAiTyping}
+              aria-label="Отправить сообщение"
+              title="Отправить сообщение"
               className={`p-2 rounded-xl flex-shrink-0 transition-all ${
                 inputValue.trim() && !(showUpsell && paymentTriggered) && !isAiTyping
                   ? 'text-[#F4E0A7] hover:bg-[rgba(244,224,167,0.15)]'
@@ -1245,6 +1263,46 @@ export function ChatWindow({ onProfileOpen, onPurchase }: ChatWindowProps) {
         onOpenChange={setShowPaymentWarning}
         onOpenProfile={handleOpenProfileForPayment}
       />
+
+      {/* Delete chat confirmation modal */}
+      <AnimatePresence>
+        {chatPendingDeletion && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100001] flex items-center justify-center bg-[rgba(13,11,36,0.9)] backdrop-blur-xl p-4"
+            onClick={() => setChatPendingDeletion(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative w-full max-w-md p-8 rounded-3xl bg-gradient-to-br from-[rgba(26,22,64,0.95)] to-[rgba(37,31,92,0.95)] border border-[rgba(169,152,255,0.3)] backdrop-blur-2xl shadow-[0_0_80px_rgba(169,152,255,0.2)]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-mystical text-[#F4E0A7] mb-3 text-center">Удалить чат?</h3>
+              <p className="text-[#B8B5D1] mb-6 text-center text-sm">
+                Это действие нельзя отменить. Вся история этого чата будет удалена безвозвратно.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setChatPendingDeletion(null)}
+                  className="flex-1 px-4 py-2.5 rounded-xl text-sm text-[#E8E6F5] border border-[rgba(169,152,255,0.3)] hover:bg-[rgba(169,152,255,0.1)] transition-colors"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={confirmDeleteChat}
+                  className="flex-1 px-4 py-2.5 rounded-xl text-sm text-red-100 bg-red-500/25 border border-red-500/40 hover:bg-red-500/35 transition-colors"
+                >
+                  Удалить
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Blocking modal shown during chat creation - moved to end and ensure highest z-index */}
       {showCreatingChatModal && (

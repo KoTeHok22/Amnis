@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { SparkleIcon } from './SparkleIcon';
 import { Sparkles } from 'lucide-react';
+import { BASE_PRICE_PER_ANALYSIS } from '../data/pricingPlans';
 
 interface PricingCardProps {
   plan: {
@@ -202,7 +203,7 @@ export function PricingCard({ plan, index, onSelect }: PricingCardProps) {
                   {plan.pricePerAnalysis}₽ за анализ
                 </div>
                 <div className="text-xs text-green-400">
-                  Экономия {((plan.analyses * 199) - plan.price)}₽
+                  Экономия {((plan.analyses * BASE_PRICE_PER_ANALYSIS) - plan.price)}₽
                 </div>
               </>
             )}

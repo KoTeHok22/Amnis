@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { verifyToken, fetchUserProfileData } from '../services/api';
+import { logger } from '../utils/logger';
 
 interface User {
   id?: number;
@@ -46,7 +47,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setIsAuthenticated(false);
           }
         } catch (error) {
-          console.error('Error during auth initialization:', error);
+          logger.error('Error during auth initialization:', error);
           localStorage.removeItem('access_token');
           setToken(null);
           setIsAuthenticated(false);
@@ -71,7 +72,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const fetchUserProfile = async () => {
     if (!token) {
-      console.error('No token available for fetching user profile');
+      logger.error('No token available for fetching user profile');
       return;
     }
 
@@ -97,7 +98,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         });
       }
     } catch (error) {
-      console.error('Error fetching user profile:', error);
+      logger.error('Error fetching user profile:', error);
     }
   };
 
